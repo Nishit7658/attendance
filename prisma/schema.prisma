@@ -1,0 +1,124 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ──────────────────────────────────────────────
+// Enums
+// ──────────────────────────────────────────────
+
+enum Role {
+  STUDENT
+  FACULTY
+  HOD
+  ADMIN
+}
+
+enum SessionStatus {
+  SCHEDULED
+  ACTIVE
+  ENDED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+}
+
+// ──────────────────────────────────────────────
+// Models
+// ──────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  role         Role
+  passwordHash String
+  department   String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  timetableEntries TimetableEntry[]   @relation("FacultyTimetable")
+  sessions         Session[]          @relation("FacultySession")
+  attendanceMarked AttendanceRecord[] @relation("MarkedBy")
+  editLogs         EditLog[]          @relation("EditedBy")
+}
+
+model Course {
+  id         String @id @default(cuid())
+  code       String @unique
+  name       String
+  department String
+  credits    Int    @default(3)
+
+  timetableEntries TimetableEntry[]
+  sessions         Session[]
+}
+
+model TimetableEntry {
+  id        String   @id @default(cuid())
+  dayOfWeek Int
+  startTime DateTime
+  endTime   DateTime
+  courseId  String
+  facultyId String
+  room      String
+  section   String
+
+  course   Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  faculty  User      @relation("FacultyTimetable", fields: [facultyId], references: [id], onDelete: Cascade)
+  sessions Session[]
+}
+
+model Session {
+  id               String        @id @default(cuid())
+  timetableEntryId String?
+  courseId         String
+  facultyId        String
+  date             DateTime      @db.Date
+  startTime        DateTime?
+  endTime          DateTime?
+  status           SessionStatus @default(SCHEDULED)
+  qrToken          String?       @unique
+  isAdHoc          Boolean       @default(false)
+  createdAt        DateTime      @default(now())
+
+  timetableEntry    TimetableEntry?    @relation(fields: [timetableEntryId], references: [id])
+  course            Course             @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  faculty           User               @relation("FacultySession", fields: [facultyId], references: [id], onDelete: Cascade)
+  attendanceRecords AttendanceRecord[]
+}
+
+model AttendanceRecord {
+  id         String           @id @default(cuid())
+  sessionId  String
+  studentId  String
+  status     AttendanceStatus
+  markedAt   DateTime         @default(now())
+  markedById String
+
+  session  Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  markedBy User    @relation("MarkedBy", fields: [markedById], references: [id])
+
+  editLogs EditLog[]
+
+  @@unique([sessionId, studentId])
+}
+
+model EditLog {
+  id                 String           @id @default(cuid())
+  attendanceRecordId String
+  oldStatus          AttendanceStatus
+  newStatus          AttendanceStatus
+  editedById         String
+  editedAt           DateTime         @default(now())
+  reason             String?
+
+  attendanceRecord AttendanceRecord @relation(fields: [attendanceRecordId], references: [id], onDelete: Cascade)
+  editedBy         User             @relation("EditedBy", fields: [editedById], references: [id])
+}
