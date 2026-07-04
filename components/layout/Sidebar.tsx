@@ -14,6 +14,11 @@ import {
   QrCode,
   BookOpen,
   Clock,
+  Upload,
+  Settings,
+  CalendarRange,
+  Tag,
+  Table,
   ChevronLeft,
   Menu,
   X,
@@ -36,17 +41,23 @@ const navConfig: Record<Role, { items: NavItem[] }> = {
       { label: "Timetables", icon: Clock, href: "/admin/timetables" },
       { label: "Users", icon: Users, href: "/admin/users" },
       { label: "Reports", icon: BarChart3, href: "/admin/reports" },
+      { label: "Import", icon: Upload, href: "/admin/import" },
+      { label: "Events", icon: CalendarRange, href: "/admin/events" },
+      { label: "Saved Groups", icon: Tag, href: "/admin/saved-groups" },
+      { label: "Settings", icon: Settings, href: "/admin/settings" },
     ],
   },
   faculty: {
     items: [
       { label: "Dashboard", icon: LayoutDashboard, href: "/faculty/dashboard" },
+      { label: "Timetable", icon: Table, href: "/faculty/timetable" },
       { label: "History", icon: Clock, href: "/faculty/history" },
     ],
   },
   hod: {
     items: [
       { label: "Dashboard", icon: LayoutDashboard, href: "/hod" },
+      { label: "Timetable", icon: Table, href: "/hod/timetable" },
       { label: "Faculty", icon: Users, href: "/hod/faculty" },
       { label: "Sessions", icon: CalendarCheck, href: "/hod/sessions" },
       { label: "Reports", icon: BarChart3, href: "/hod/reports" },
@@ -55,6 +66,7 @@ const navConfig: Record<Role, { items: NavItem[] }> = {
   student: {
     items: [
       { label: "Dashboard", icon: LayoutDashboard, href: "/student" },
+      { label: "Timetable", icon: Table, href: "/student/timetable" },
       { label: "Scan QR", icon: QrCode, href: "/student/scan" },
     ],
   },

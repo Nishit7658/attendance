@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getTodaySessions, getActiveSession } from "@/lib/faculty-service";
 import SessionCard from "@/components/faculty/SessionCard";
@@ -24,9 +25,17 @@ export default async function FacultyDashboardPage() {
 
   return (
     <div className="max-w-3xl">
-      <h1 className="text-xl font-semibold text-slate-900 mb-6">
-        Faculty Dashboard
-      </h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-xl font-semibold text-slate-900">
+          Faculty Dashboard
+        </h1>
+        <Link
+          href="/faculty/timetable"
+          className="text-xs text-navy-600 hover:text-navy-800 underline transition-colors"
+        >
+          View full timetable
+        </Link>
+      </div>
 
       {activeSession && (
         <div className="mb-6 rounded border border-navy-200 bg-navy-50 px-5 py-4">

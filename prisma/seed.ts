@@ -1,12 +1,14 @@
+import "dotenv/config";
 import { PrismaClient, Role } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { Pool } from "pg";
 import bcrypt from "bcryptjs";
 import * as fs from "fs";
 import * as path from "path";
 
-const prisma = new PrismaClient({
-  adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
-});
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
 
 interface FacultySeed {
   code: string;
@@ -141,6 +143,25 @@ async function main() {
     },
   });
 
+  // Seed default system config
+  const defaultConfig = [
+    { key: "slots_per_day", value: "6" },
+    { key: "lan_restriction_enabled", value: "false" },
+    { key: "lan_allowed_ips", value: "" },
+    { key: "academic_year", value: new Date().getFullYear().toString() },
+    { key: "min_attendance_percentage", value: "75" },
+    { key: "qr_refresh_interval", value: "3" },
+  ];
+
+  for (const cfg of defaultConfig) {
+    await prisma.systemConfig.upsert({
+      where: { key: cfg.key },
+      update: {},
+      create: { key: cfg.key, value: cfg.value },
+    });
+  }
+
+  console.log(`Seeded ${defaultConfig.length} system config entries`);
   console.log(`Seeded ${dbData.faculty.length} faculty members`);
   console.log(`Seeded ${dbData.courses.length} courses`);
   console.log(`Seeded ${dbData.timetableEntries.length} timetable entries`);

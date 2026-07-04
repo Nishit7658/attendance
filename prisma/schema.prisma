@@ -47,6 +47,10 @@ model User {
   sessions         Session[]          @relation("FacultySession")
   attendanceMarked AttendanceRecord[] @relation("MarkedBy")
   editLogs         EditLog[]          @relation("EditedBy")
+  createdEvents    Event[]            @relation("EventCreator")
+  eventScopes      EventScopeItem[]
+  savedGroupOwned  SavedGroup[]       @relation("SavedGroupCreator")
+  savedGroupMember SavedGroupMember[]
 }
 
 model Course {
@@ -121,4 +125,68 @@ model EditLog {
 
   attendanceRecord AttendanceRecord @relation(fields: [attendanceRecordId], references: [id], onDelete: Cascade)
   editedBy         User             @relation("EditedBy", fields: [editedById], references: [id])
+}
+
+model SystemConfig {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String
+}
+
+enum EventScopeType {
+  DEPARTMENT
+  SAVED_GROUP
+  CUSTOM_LIST
+}
+
+model Event {
+  id          String         @id @default(cuid())
+  name        String
+  description String?
+  startDate   DateTime
+  endDate     DateTime
+  scopeType   EventScopeType
+  department  String?        // Used when scopeType is DEPARTMENT
+  createdById String
+  isApplied   Boolean        @default(false)
+  createdAt   DateTime       @default(now())
+
+  createdBy   User             @relation("EventCreator", fields: [createdById], references: [id])
+  scopeItems  EventScopeItem[]
+  savedGroup  SavedGroup?      @relation(fields: [savedGroupId], references: [id])
+  savedGroupId String?
+}
+
+model EventScopeItem {
+  id        String @id @default(cuid())
+  eventId   String
+  studentId String
+
+  event   Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  student User  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, studentId])
+}
+
+model SavedGroup {
+  id          String @id @default(cuid())
+  name        String @unique
+  description String?
+  createdById String
+  createdAt   DateTime @default(now())
+
+  createdBy User              @relation("SavedGroupCreator", fields: [createdById], references: [id])
+  members   SavedGroupMember[]
+  events    Event[]
+}
+
+model SavedGroupMember {
+  id           String @id @default(cuid())
+  savedGroupId String
+  studentId    String
+
+  savedGroup SavedGroup @relation(fields: [savedGroupId], references: [id], onDelete: Cascade)
+  student    User       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([savedGroupId, studentId])
 }

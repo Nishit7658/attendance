@@ -9,7 +9,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { cn } from "@/lib/utils";
 
 interface PageProps {
-  searchParams: { range?: string };
+  searchParams: { range?: string; from?: string; to?: string };
 }
 
 function formatDate(dt: Date) {
@@ -35,19 +35,31 @@ export default async function FacultyHistoryPage({ searchParams }: PageProps) {
   }
 
   const range = searchParams?.range ?? "all";
+  const customFrom = searchParams?.from;
+  const customTo = searchParams?.to;
   const now = new Date();
-  let dateFilter: Date | undefined;
-  if (range === "7d") {
-    dateFilter = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  let dateFilter: { gte?: Date; lte?: Date } = {};
+
+  if (customFrom && customTo) {
+    const fromDate = new Date(customFrom);
+    const toDate = new Date(customTo);
+    toDate.setHours(23, 59, 59, 999);
+    if (!isNaN(fromDate.getTime()) && !isNaN(toDate.getTime())) {
+      dateFilter = { gte: fromDate, lte: toDate };
+    }
+  } else if (range === "7d") {
+    dateFilter = { gte: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) };
   } else if (range === "30d") {
-    dateFilter = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    dateFilter = { gte: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000) };
+  } else {
+    dateFilter = {};
   }
 
   const sessions = await prisma.session.findMany({
     where: {
       facultyId: user.id,
       status: "ENDED",
-      ...(dateFilter ? { date: { gte: dateFilter } } : {}),
+      ...(Object.keys(dateFilter).length > 0 ? { date: dateFilter } : {}),
     },
     include: {
       course: true,
@@ -62,11 +74,14 @@ export default async function FacultyHistoryPage({ searchParams }: PageProps) {
     { label: "All time", value: "all" },
   ];
 
+  const isCustom = !!customFrom && !!customTo;
+
   return (
     <div className="max-w-5xl">
       <h1 className="mb-6 text-2xl font-bold text-navy-900">Session History</h1>
 
-      <div className="mb-6 flex items-center gap-2">
+      <div className="mb-6 flex flex-wrap items-center gap-3">
+        {/* Preset range buttons */}
         <span className="text-sm font-medium text-slate-700">Range:</span>
         {rangeLinks.map((r) => (
           <Link
@@ -74,7 +89,7 @@ export default async function FacultyHistoryPage({ searchParams }: PageProps) {
             href={`/faculty/history?range=${r.value}`}
             className={cn(
               "rounded-md px-3 py-1.5 text-sm transition-colors",
-              range === r.value
+              range === r.value && !isCustom
                 ? "bg-navy-700 text-white"
                 : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50",
             )}
@@ -82,14 +97,50 @@ export default async function FacultyHistoryPage({ searchParams }: PageProps) {
             {r.label}
           </Link>
         ))}
+
+        {/* Spacer */}
+        <span className="mx-2 text-slate-300">|</span>
+
+        {/* Custom date range */}
+        <form method="GET" action="/faculty/history" className="flex items-center gap-2">
+          <input
+            type="date"
+            name="from"
+            defaultValue={customFrom ?? ""}
+            className="h-8 rounded border border-slate-300 px-2 text-sm text-slate-700 focus:border-navy-700 focus:outline-none"
+            aria-label="From date"
+          />
+          <span className="text-xs text-slate-400">to</span>
+          <input
+            type="date"
+            name="to"
+            defaultValue={customTo ?? ""}
+            className="h-8 rounded border border-slate-300 px-2 text-sm text-slate-700 focus:border-navy-700 focus:outline-none"
+            aria-label="To date"
+          />
+          <button
+            type="submit"
+            className="rounded bg-navy-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-navy-800 transition-colors"
+          >
+            Go
+          </button>
+          {isCustom && (
+            <Link
+              href="/faculty/history?range=all"
+              className="text-xs text-slate-500 hover:text-slate-700"
+            >
+              Clear
+            </Link>
+          )}
+        </form>
       </div>
 
       {sessions.length === 0 ? (
         <EmptyState
           title="No past sessions found"
           description={
-            range !== "all"
-              ? `No sessions ended in the selected period.`
+            isCustom || range !== "all"
+              ? "No sessions ended in the selected period."
               : "You haven't conducted any sessions yet."
           }
           action={

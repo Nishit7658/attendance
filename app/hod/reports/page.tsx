@@ -1,11 +1,20 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/Table";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 
-export default async function HODReportsPage() {
+interface PageProps {
+  searchParams: { from?: string; to?: string };
+}
+
+function formatDate(d: Date): string {
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+export default async function HODReportsPage({ searchParams }: PageProps) {
   const session = await auth();
   if (!session?.user?.email) redirect("/login");
 
@@ -22,9 +31,33 @@ export default async function HODReportsPage() {
     return <p className="text-sm text-slate-500">No department assigned.</p>;
   }
 
+  // Determine date range
   const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+  const customFrom = searchParams?.from;
+  const customTo = searchParams?.to;
+
+  let rangeStart: Date;
+  let rangeEnd: Date;
+  let rangeLabel: string;
+
+  if (customFrom && customTo) {
+    const fromDate = new Date(customFrom);
+    const toDate = new Date(customTo);
+    toDate.setHours(23, 59, 59, 999);
+    if (!isNaN(fromDate.getTime()) && !isNaN(toDate.getTime())) {
+      rangeStart = fromDate;
+      rangeEnd = toDate;
+      rangeLabel = `${formatDate(rangeStart)} – ${formatDate(rangeEnd)}`;
+    } else {
+      rangeStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      rangeEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+      rangeLabel = `This Month (${formatDate(rangeStart)} – ${formatDate(rangeEnd)})`;
+    }
+  } else {
+    rangeStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    rangeEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    rangeLabel = `This Month (${formatDate(rangeStart)} – ${formatDate(rangeEnd)})`;
+  }
 
   const [facultyList, monthSessionCount] = await Promise.all([
     prisma.user.findMany({
@@ -34,7 +67,7 @@ export default async function HODReportsPage() {
     }),
     prisma.session.count({
       where: {
-        date: { gte: startOfMonth, lte: endOfMonth },
+        date: { gte: rangeStart, lte: rangeEnd },
         faculty: { department },
       },
     }),
@@ -44,7 +77,7 @@ export default async function HODReportsPage() {
     where: {
       session: {
         faculty: { department },
-        date: { gte: startOfMonth, lte: endOfMonth },
+        date: { gte: rangeStart, lte: rangeEnd },
       },
     },
     include: {
@@ -89,13 +122,51 @@ export default async function HODReportsPage() {
 
   const stats = [
     { label: "Faculty Members", value: facultyList.length },
-    { label: "Sessions This Month", value: monthSessionCount },
+    { label: "Sessions in Period", value: monthSessionCount },
     { label: "Avg Attendance", value: `${avgAttendance}%` },
   ];
+
+  const isCustom = !!customFrom && !!customTo;
 
   return (
     <div>
       <h1 className="mb-6 text-2xl font-bold text-navy-900">{department} Reports</h1>
+
+      {/* Date range picker */}
+      <div className="mb-6 flex flex-wrap items-center gap-2">
+        <span className="text-sm font-medium text-slate-700">Period:</span>
+        <form method="GET" action="/hod/reports" className="flex items-center gap-2">
+          <input
+            type="date"
+            name="from"
+            defaultValue={customFrom ?? ""}
+            className="h-8 rounded border border-slate-300 px-2 text-sm text-slate-700 focus:border-navy-700 focus:outline-none"
+            aria-label="From date"
+          />
+          <span className="text-xs text-slate-400">to</span>
+          <input
+            type="date"
+            name="to"
+            defaultValue={customTo ?? ""}
+            className="h-8 rounded border border-slate-300 px-2 text-sm text-slate-700 focus:border-navy-700 focus:outline-none"
+            aria-label="To date"
+          />
+          <button
+            type="submit"
+            className="rounded bg-navy-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-navy-800 transition-colors"
+          >
+            Go
+          </button>
+          {isCustom && (
+            <Link
+              href="/hod/reports"
+              className="text-xs text-slate-500 hover:text-slate-700"
+            >
+              Reset to this month
+            </Link>
+          )}
+        </form>
+      </div>
 
       <div className="mb-8 grid grid-cols-3 gap-4">
         {stats.map((stat) => (
@@ -111,6 +182,8 @@ export default async function HODReportsPage() {
         ))}
       </div>
 
+      <p className="mb-4 text-xs text-slate-500">{rangeLabel}</p>
+
       <h2 className="mb-4 text-lg font-semibold text-slate-900">
         Per-Faculty Attendance
       </h2>
@@ -118,7 +191,7 @@ export default async function HODReportsPage() {
       {facultySummaries.length === 0 ? (
         <EmptyState
           title="No data yet"
-          description="No sessions have been conducted this month."
+          description="No sessions have been conducted in this period."
         />
       ) : (
         <Table>
