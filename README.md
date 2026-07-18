@@ -1,25 +1,32 @@
-# Attendance
+# DaemThis Attendance
 
-College Attendance Management System — digital attendance for faculty, students, HODs, and admin across multiple portals.
+A Premium College Attendance Management System featuring digital attendance for faculty, students, HODs, and administrators across multiple role-based portals. Built with a modern tech stack, dark-mode-first premium UI, and secure rotating QR code technology.
 
-## Stack
+## 🌟 Key Features
+
+- **Role-Based Portals**: Dedicated UI and workflows for **Admins**, **HODs**, **Faculty**, and **Students**.
+- **Secure Live QR Attendance**: Faculty can project a live QR code that updates every 5 seconds (preventing screenshot cheating) using Server-Sent Events (SSE).
+- **Intelligent Timetables**: Automated rendering of timetables with dynamic conflict packing (if two lab sessions overlap, they render side-by-side beautifully).
+- **Fast Testing UI**: A built-in "Quick Test Login" panel on the login screen to instantly switch between user roles with one click.
+- **Premium Design System**: Dark-themed, glassmorphic UI built from scratch using OKLCH color tokens, system-ui fonts, and micro-animations for a deeply satisfying user experience.
+
+## 💻 Tech Stack
 
 - **Framework:** Next.js 14 (App Router) + TypeScript
-- **Styling:** Tailwind CSS + OKLCH design tokens
-- **Auth:** NextAuth v5 (Auth.js) — credentials provider, JWT strategy
+- **Styling:** Vanilla CSS Modules + Tailwind CSS with custom Design Tokens
+- **Auth:** NextAuth.js v5 — Credentials Provider with JWT
 - **Database:** PostgreSQL + Prisma ORM
-- **QR:** jsqr (browser decoding) + jose (token signing) + SSE (token rotation)
+- **Realtime:** SSE (Server-Sent Events) for real-time QR rotation
+- **QR Tech:** jsqr (browser decoding) + jose (JWT token signing)
 
-## Getting Started
+---
 
-### 1. Start PostgreSQL
+## 🚀 How to Run Locally
 
-```bash
-docker start puff-attendance-app-db-1
-```
+Follow these steps to get the project running on your local machine.
 
-If you don't have a container yet:
-
+### 1. Start the Database (PostgreSQL)
+You will need a PostgreSQL database. If you have Docker installed, you can spin one up instantly:
 ```bash
 docker run -d --name puff-attendance-db \
   -e POSTGRES_USER=puff \
@@ -29,89 +36,50 @@ docker run -d --name puff-attendance-db \
   postgres:16-alpine
 ```
 
-### 2. Sync database schema
+### 2. Install Dependencies
+```bash
+npm install
+```
 
+### 3. Sync Database Schema
+Push the Prisma schema to your local database to create the necessary tables:
 ```bash
 npx prisma db push
 ```
 
-### 3. Seed sample data
-
+### 4. Seed the Database
+Populate the database with sample users, timetables, and courses:
 ```bash
 npx tsx prisma/seed.ts
+npx tsx prisma/seed_ce_timetable.ts
 ```
 
-### 4. Start dev server
-
+### 5. Start the Development Server
 ```bash
 npm run dev
 ```
+Visit **http://localhost:3000** in your browser!
 
-Visit **http://localhost:3000**
+---
 
-## Test Credentials
+## 🔑 Login Info & Test Credentials
 
-All accounts use password: **`password123`**
+On the login page, you can use the **Quick Test Login** buttons at the bottom of the form to instantly log in as any role with one click! 
 
-| Role | Email | Portal URL |
-|---|---|---|
-| **Admin** | admin@college.edu | `/admin` — manage users, courses, timetables |
-| **Faculty** | faculty@college.edu | `/faculty/dashboard` — take attendance, start sessions |
-| **HOD** | hod@college.edu | `/hod` — monitor faculty, generate reports |
-| **Student** | student@college.edu | `/student` — view attendance, scan QR code |
+If you prefer to type them manually, all test accounts use the password: **`password123`**
 
-## Project Structure
+| Role | Email | Portal URL | Access Level |
+|---|---|---|---|
+| **Admin** | `admin@college.edu` | `/admin` | Manage users, courses, create and edit timetables. |
+| **Faculty** | `byp@college.edu` | `/faculty` | Start live sessions, project QR codes, view history. |
+| **HOD** | `hod@college.edu` | `/hod` | Monitor faculty attendance, generate department reports. |
+| **Student** | `student@college.edu` | `/student` | View personal attendance, scan live QR codes. |
 
-```
-app/
-  (auth)/           Login, auth error pages
-  admin/            User/course/timetable CRUD, reports
-  faculty/          Dashboard, live session, summary, history
-  hod/              Faculty list, session monitoring, reports
-  student/          Dashboard, QR scanner
-  api/              All API routes (auth, faculty, admin, student, qr)
-components/
-  ui/               Button, Input, Table, Badge, Banner, Modal, Skeleton, EmptyState
-  layout/           AppShell, Sidebar, Topbar
-  faculty/          SessionCard, LiveSessionClient, StudentTable, AdHocForm, etc.
-  student/          QRScanner
-  auth/             LoginForm, SessionProvider
-lib/
-  prisma.ts         Singleton PrismaClient
-  auth.ts           NextAuth re-exports
-  auth.config.ts    Auth configuration
-  faculty-service.ts Faculty session logic
-  qr-token.ts       JWT sign/verify for QR tokens
-  utils.ts          cn() class merger
-prisma/
-  schema.prisma     6 models (User, Course, TimetableEntry, Session, AttendanceRecord, EditLog)
-  seed.ts           Sample data
-styles/
-  design-tokens.css OKLCH color tokens, typography, spacing
-```
+---
 
-## Routes (33 total)
+## 📂 Project Structure
 
-### Portals
-- `/admin/*` — Admin dashboard, users, courses, timetables, reports
-- `/faculty/*` — Dashboard, live session, session summary, history
-- `/hod/*` — Dashboard, faculty, sessions, reports
-- `/student/*` — Dashboard, QR scanner
-
-### API
-- `/api/auth/[...nextauth]` — NextAuth handlers
-- `/api/faculty/sessions/[id]/*` — Start, live (SSE), end, attendance, export
-- `/api/faculty/sessions/ad-hoc` — Ad-hoc session creation
-- `/api/admin/users/*` — User CRUD
-- `/api/admin/courses/*` — Course CRUD
-- `/api/admin/timetables/*` — Timetable CRUD
-- `/api/student/scan` — QR token verification + attendance marking
-- `/api/qr/generate` — QR code PNG generation
-
-## Design System
-
-- **Creative North Star:** "The Quiet Register" — invisible, task-focused interface
-- **Accent:** Navy-slate (`oklch(0.37 0.08 260)`) on ≤10% of any surface
-- **Typography:** System-ui font stack (single sans-serif)
-- **Elevation:** Flat by default — depth via background tints, not shadows
-- **Contrast:** Body ≥7:1, muted ≥4:1, all pass WCAG AA
+- `app/` - Next.js App Router structure with dedicated route groups for `(auth)`, `admin/`, `faculty/`, `hod/`, and `student/`.
+- `components/` - Reusable UI components (Buttons, Modals, TimetableGrid) and role-specific views.
+- `lib/` - Prisma client, NextAuth configuration, and utility functions.
+- `prisma/` - Database schema defining Users, Courses, TimetableEntries, and AttendanceRecords.
