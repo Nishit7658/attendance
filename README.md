@@ -2,7 +2,7 @@
 
 A Premium College Attendance Management System featuring digital attendance for faculty, students, HODs, and administrators across multiple role-based portals. Built with a modern tech stack, dark-mode-first premium UI, and secure rotating QR code technology.
 
-## 🌟 Key Features
+## Key Features
 
 - **Role-Based Portals**: Dedicated UI and workflows for **Admins**, **HODs**, **Faculty**, and **Students**.
 - **Secure Live QR Attendance**: Faculty can project a live QR code that updates every 5 seconds (preventing screenshot cheating) using Server-Sent Events (SSE).
@@ -10,7 +10,7 @@ A Premium College Attendance Management System featuring digital attendance for 
 - **Fast Testing UI**: A built-in "Quick Test Login" panel on the login screen to instantly switch between user roles with one click.
 - **Premium Design System**: Dark-themed, glassmorphic UI built from scratch using OKLCH color tokens, system-ui fonts, and micro-animations for a deeply satisfying user experience.
 
-## 💻 Tech Stack
+## Tech Stack
 
 - **Framework:** Next.js 14 (App Router) + TypeScript
 - **Styling:** Vanilla CSS Modules + Tailwind CSS with custom Design Tokens
@@ -21,7 +21,7 @@ A Premium College Attendance Management System featuring digital attendance for 
 
 ---
 
-## 🚀 How to Run Locally
+## How to Run Locally
 
 Follow these steps to get the project running on your local machine.
 
@@ -62,7 +62,7 @@ Visit **http://localhost:3000** in your browser!
 
 ---
 
-## 🔑 Login Info & Test Credentials
+## Login Info & Test Credentials
 
 On the login page, you can use the **Quick Test Login** buttons at the bottom of the form to instantly log in as any role with one click! 
 
@@ -77,7 +77,7 @@ If you prefer to type them manually, all test accounts use the password: **`pass
 
 ---
 
-## 📂 Project Structure
+## Project Structure
 
 - `app/` - Next.js App Router structure with dedicated route groups for `(auth)`, `admin/`, `faculty/`, `hod/`, and `student/`.
 - `components/` - Reusable UI components (Buttons, Modals, TimetableGrid) and role-specific views.
