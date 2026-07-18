@@ -9,15 +9,15 @@ export interface AuthLayoutProps {
 
 export function AuthLayout({ children, title, className }: AuthLayoutProps) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[var(--color-surface)] px-4">
+    <div className="flex min-h-screen items-center justify-center bg-surface px-4">
       <div
         className={cn(
-          "w-full max-w-sm rounded-[var(--radius-lg)] bg-[var(--color-bg)] p-8",
+          "w-full max-w-sm rounded-[var(--radius-lg)] bg-bg p-8",
           className
         )}
       >
         {title && (
-          <h1 className="mb-6 text-center text-[var(--fs-headline)] font-[var(--fw-semibold)] text-[var(--color-ink)]">
+          <h1 className="mb-6 text-center text-[var(--fs-headline)] font-[var(--fw-semibold)] text-ink">
             {title}
           </h1>
         )}

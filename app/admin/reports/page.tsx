@@ -43,7 +43,7 @@ export default async function AdminReportsPage() {
 
   const deptMap = new Map<string, { sessions: number; present: number; total: number }>();
   for (const s of monthlySessions) {
-    const dept = s.course.department;
+    const dept = s.course.department || "Unknown";
     if (!deptMap.has(dept)) deptMap.set(dept, { sessions: 0, present: 0, total: 0 });
     const entry = deptMap.get(dept)!;
     entry.sessions++;

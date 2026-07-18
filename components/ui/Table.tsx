@@ -10,7 +10,7 @@ export function Table({ children, className, ariaLabel }: TableProps) {
   return (
     <div className={cn("overflow-x-auto", className)}>
       <table
-        className="min-w-full divide-y divide-slate-200"
+        className="min-w-full divide-y divide-border"
         role="table"
         aria-label={ariaLabel}
       >
@@ -21,11 +21,11 @@ export function Table({ children, className, ariaLabel }: TableProps) {
 }
 
 export function TableHeader({ children, className }: TableProps) {
-  return <thead className={cn("bg-slate-50", className)}>{children}</thead>;
+  return <thead className={cn("bg-surface border-b border-border", className)}>{children}</thead>;
 }
 
 export function TableBody({ children, className }: TableProps) {
-  return <tbody className={cn("divide-y divide-slate-200 bg-white", className)}>{children}</tbody>;
+  return <tbody className={cn("divide-y divide-border bg-bg", className)}>{children}</tbody>;
 }
 
 interface TableRowProps extends React.HTMLAttributes<HTMLTableRowElement> {
@@ -36,7 +36,7 @@ interface TableRowProps extends React.HTMLAttributes<HTMLTableRowElement> {
 export function TableRow({ children, className, tabIndex, ...props }: TableRowProps) {
   return (
     <tr
-      className={cn("hover:bg-slate-50", className)}
+      className={cn("hover:bg-surface-hover transition-colors", className)}
       tabIndex={tabIndex ?? -1}
       {...props}
     >
@@ -50,7 +50,7 @@ export function TableHead({ children, className, ...props }: TableProps & React.
     <th
       scope="col"
       className={cn(
-        "px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500",
+        "px-4 py-3 text-left text-[var(--fs-label)] font-[var(--fw-medium)] text-muted tracking-[0.01em]",
         className,
       )}
       {...props}
@@ -61,5 +61,5 @@ export function TableHead({ children, className, ...props }: TableProps & React.
 }
 
 export function TableCell({ children, className, ...props }: TableProps & React.TdHTMLAttributes<HTMLTableCellElement>) {
-  return <td className={cn("whitespace-nowrap px-4 py-3 text-sm text-slate-700", className)} {...props}>{children}</td>;
+  return <td className={cn("whitespace-nowrap px-4 py-3 text-[var(--fs-body)] text-ink", className)} {...props}>{children}</td>;
 }

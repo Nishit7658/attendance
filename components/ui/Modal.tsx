@@ -107,20 +107,20 @@ export function Modal({ open, onClose, title, description, children, className }
         aria-labelledby={title ? titleId : undefined}
         aria-describedby={description ? descId : undefined}
         className={cn(
-          "w-full max-w-md rounded-[var(--radius-lg)] bg-[var(--color-bg)] p-6",
+          "w-full max-w-md rounded-[var(--radius-lg)] bg-bg p-6",
           "shadow-[0_0_0_1px_rgba(0,0,0,0.05),0_8px_32px_rgba(0,0,0,0.12)]",
           className
         )}
       >
         <div className="mb-4 flex items-center justify-between">
           {title && (
-            <h2 id={titleId} className="text-[var(--fs-title)] font-[var(--fw-semibold)] text-[var(--color-ink)]">
+            <h2 id={titleId} className="text-[var(--fs-title)] font-[var(--fw-semibold)] text-ink">
               {title}
             </h2>
           )}
           <button
             onClick={onClose}
-            className="text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors"
+            className="text-muted hover:text-ink transition-colors"
             aria-label="Close dialog"
           >
             <X className="h-5 w-5" />

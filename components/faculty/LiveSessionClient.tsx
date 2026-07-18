@@ -46,6 +46,8 @@ export default function LiveSessionClient({
   const [error, setError] = useState<string | null>(null);
   const [markingId, setMarkingId] = useState<string | null>(null);
   const [showRoster, setShowRoster] = useState(false);
+  const [now, setNow] = useState(Date.now());
+  const [nextRefresh, setNextRefresh] = useState<number | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectAttemptRef = useRef(0);
@@ -83,6 +85,8 @@ export default function LiveSessionClient({
       try {
         const data: TokenData = JSON.parse(e.data);
         setTokenData(data);
+        setNextRefresh(Date.now() + 5000);
+
         QRCode.toDataURL(data.token, {
           width: 256,
           margin: 1,
@@ -129,8 +133,15 @@ export default function LiveSessionClient({
   useEffect(() => {
     mountedRef.current = true;
     connect();
+    
+    // Smooth timer updates
+    const timer = setInterval(() => {
+      if (mountedRef.current) setNow(Date.now());
+    }, 100);
+
     return () => {
       mountedRef.current = false;
+      clearInterval(timer);
       if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
       eventSourceRef.current?.close();
     };
@@ -199,10 +210,9 @@ export default function LiveSessionClient({
     win.print();
   }, [qrDataUrl, courseName, courseCode]);
 
-  const expiresIn = tokenData
-    ? Math.max(0, Math.floor((tokenData.expiresAt - Date.now()) / 1000))
-    : 0;
-  const timerPercent = (expiresIn / 5) * 100;
+  const refreshMsLeft = nextRefresh ? Math.max(0, nextRefresh - now) : 0;
+  const refreshSecs = Math.ceil(refreshMsLeft / 1000);
+  const timerPercent = (refreshMsLeft / 5000) * 100;
 
   const unmarkedCount = students.filter((s) => !s.status).length;
   const markedCount = students.length - unmarkedCount;
@@ -211,8 +221,8 @@ export default function LiveSessionClient({
     <div className="flex flex-col items-center">
       {/* Header */}
       <div className="text-center mb-6">
-        <h1 className="text-lg font-semibold text-slate-900">{courseName}</h1>
-        <p className="text-sm text-slate-500 mt-0.5">
+        <h1 className="text-lg font-semibold text-ink">{courseName}</h1>
+        <p className="text-sm text-muted mt-0.5">
           {courseCode} — Live Session
         </p>
       </div>
@@ -229,7 +239,7 @@ export default function LiveSessionClient({
         <div className="flex flex-col items-center mx-auto lg:mx-0">
           <div className="relative mb-2">
             {qrDataUrl ? (
-              <div className="rounded border border-slate-200 p-3 bg-white max-w-[286px]">
+              <div className="rounded border border-border p-3 bg-white max-w-[286px]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   ref={qrImgRef}
@@ -241,19 +251,19 @@ export default function LiveSessionClient({
                 />
               </div>
             ) : (
-              <div className="w-[220px] h-[220px] sm:w-[286px] sm:h-[286px] rounded border border-slate-200 bg-slate-50 flex items-center justify-center">
-                <div className="w-8 h-8 rounded-full border-2 border-navy-700 border-t-transparent animate-spin" />
+              <div className="w-[220px] h-[220px] sm:w-[286px] sm:h-[286px] rounded border border-border bg-surface flex items-center justify-center">
+                <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
               </div>
             )}
             <div className="mt-2 flex items-center gap-2">
-              <div className="flex-1 h-1 rounded-full bg-slate-200 overflow-hidden">
+              <div className="flex-1 h-1 rounded-full bg-border overflow-hidden">
                 <div
-                  className="h-full bg-navy-700 transition-all duration-500"
+                  className="h-full bg-primary transition-all duration-100 ease-linear"
                   style={{ width: `${timerPercent}%` }}
                 />
               </div>
-              <span className="text-xs text-slate-400 w-8 text-right">
-                {expiresIn}s
+              <span className="text-xs text-muted w-8 text-right">
+                {refreshSecs}s
               </span>
             </div>
           </div>
@@ -274,16 +284,16 @@ export default function LiveSessionClient({
             {attendance ? (
               <>
                 <div className="text-center">
-                  <p className="text-xl font-semibold text-green-700">{attendance.present}</p>
-                  <p className="text-xs text-slate-500">Present</p>
+                  <p className="text-xl font-semibold text-green-500">{attendance.present}</p>
+                  <p className="text-xs text-muted">Present</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-xl font-semibold text-red-700">{attendance.absent}</p>
-                  <p className="text-xs text-slate-500">Absent</p>
+                  <p className="text-xl font-semibold text-red-500">{attendance.absent}</p>
+                  <p className="text-xs text-muted">Absent</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-xl font-semibold text-slate-700">{attendance.total}</p>
-                  <p className="text-xs text-slate-500">Total</p>
+                  <p className="text-xl font-semibold text-ink">{attendance.total}</p>
+                  <p className="text-xs text-muted">Total</p>
                 </div>
               </>
             ) : (

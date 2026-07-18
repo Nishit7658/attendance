@@ -47,7 +47,7 @@ export async function GET(
         }
       };
 
-      const interval = setInterval(async () => {
+      const tick = async () => {
         try {
           const current = await prisma.session.findUnique({
             where: { id: params.id },
@@ -84,7 +84,12 @@ export async function GET(
         } catch (err) {
           console.error("SSE error for session", params.id, err);
         }
-      }, 3000);
+      };
+
+      // Send the first update immediately
+      tick();
+
+      const interval = setInterval(tick, 5000);
 
 
 

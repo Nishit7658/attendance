@@ -19,7 +19,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         {label && (
           <label
             htmlFor={inputId}
-            className="text-[var(--fs-label)] font-[var(--fw-medium)] text-[var(--color-ink)]"
+            className="text-[var(--fs-label)] font-[var(--fw-medium)] text-ink"
           >
             {label}
           </label>
@@ -29,10 +29,10 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           id={inputId}
           disabled={disabled}
           className={cn(
-            "h-10 rounded-[var(--radius-md)] border bg-[var(--color-bg)] px-3 text-[var(--fs-body)] text-[var(--color-ink)] placeholder:text-[var(--color-muted)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-50",
+            "h-10 rounded-md border bg-bg px-3 text-[13px] text-ink placeholder:text-muted transition-colors duration-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary disabled:cursor-not-allowed disabled:opacity-50 shadow-sm",
             error
-              ? "border-[var(--color-error)]"
-              : "border-[var(--color-border)]",
+              ? "border-error focus-visible:ring-error focus-visible:border-error"
+              : "border-border hover:border-muted",
             className
           )}
           aria-invalid={!!error}
@@ -46,7 +46,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         {error && (
           <p
             id={`${inputId}-error`}
-            className="text-[var(--fs-caption)] text-[var(--color-error)]"
+            className="text-[var(--fs-caption)] text-error"
             role="alert"
           >
             {error}
@@ -55,7 +55,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         {helperText && !error && (
           <p
             id={`${inputId}-helper`}
-            className="text-[var(--fs-caption)] text-[var(--color-muted)]"
+            className="text-[var(--fs-caption)] text-muted"
           >
             {helperText}
           </p>

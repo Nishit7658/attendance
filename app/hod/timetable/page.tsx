@@ -1,10 +1,16 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { TimetableGrid, type TimetableEntry } from "@/components/ui/TimetableGrid";
-import { EmptyState } from "@/components/ui/EmptyState";
+import { TimetableCalendar, type CalendarEntry } from "@/components/timetable/TimetableCalendar";
 
-export default async function HODTimetablePage() {
+const DAY_LABELS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+export default async function HODTimetablePage({
+  searchParams,
+}: {
+  searchParams: { day?: string };
+}) {
   const session = await auth();
   if (!session?.user?.email) redirect("/login");
 
@@ -17,12 +23,18 @@ export default async function HODTimetablePage() {
   }
 
   const department = currentUser.department;
+
   if (!department) {
-    return <p className="text-sm text-slate-500">No department assigned.</p>;
+    return <p className="text-sm text-muted">No department assigned to your account.</p>;
   }
 
+  const selectedDay = searchParams.day !== undefined ? parseInt(searchParams.day) : 1;
+
   const entries = await prisma.timetableEntry.findMany({
-    where: { faculty: { department } },
+    where: { 
+      faculty: { department },
+      dayOfWeek: selectedDay
+    },
     include: {
       course: { select: { code: true, name: true } },
       faculty: { select: { name: true } },
@@ -30,32 +42,49 @@ export default async function HODTimetablePage() {
     orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }],
   });
 
-  const timetableEntries: TimetableEntry[] = entries.map((e) => ({
+  const calendarEntries: CalendarEntry[] = entries.map((e) => ({
     id: e.id,
     dayOfWeek: e.dayOfWeek,
-    startTime: e.startTime.toISOString(),
-    endTime: e.endTime.toISOString(),
-    courseCode: e.course.code,
-    courseName: e.course.name,
-    facultyName: e.faculty.name,
+    startTime: e.startTime,
+    endTime: e.endTime,
+    title: e.course.code,
+    subtitle: `${e.course.name} • ${e.faculty.name}`,
     room: e.room,
-    section: e.section,
   }));
 
   return (
     <div className="max-w-6xl">
-      <h1 className="mb-6 text-2xl font-bold text-navy-900">
-        {department} — Timetable
+      <h1 className="mb-6 text-2xl font-bold text-ink">
+        {department} Timetable
       </h1>
 
-      {timetableEntries.length === 0 ? (
-        <EmptyState
-          title="No timetable entries"
-          description="No classes are scheduled for this department."
+      <div className="mb-6 flex flex-wrap items-center gap-2">
+        {DAY_LABELS.map((label, i) => {
+          if (i === 0) return null; // Skip Sunday
+          return (
+            <Link
+              key={i}
+              href={`/hod/timetable?day=${i}`}
+              className={`rounded border px-3 py-1.5 text-[13px] font-medium transition-colors ${
+                selectedDay === i
+                  ? "bg-primary text-white border-primary"
+                  : "border-border text-muted hover:text-ink hover:bg-surface"
+              }`}
+            >
+              {label}
+            </Link>
+          )
+        })}
+      </div>
+
+      <div className="bg-bg">
+        <TimetableCalendar 
+          entries={calendarEntries} 
+          startHour={9} 
+          endHour={17} 
+          visibleDays={[selectedDay]} 
         />
-      ) : (
-        <TimetableGrid entries={timetableEntries} showFaculty />
-      )}
+      </div>
     </div>
   );
 }

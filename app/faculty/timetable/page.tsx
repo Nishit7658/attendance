@@ -1,12 +1,16 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { TimetableGrid, type TimetableEntry } from "@/components/ui/TimetableGrid";
-import { EmptyState } from "@/components/ui/EmptyState";
-import { Button } from "@/components/ui/Button";
-import Link from "next/link";
+import { TimetableCalendar, type CalendarEntry } from "@/components/timetable/TimetableCalendar";
 
-export default async function FacultyTimetablePage() {
+const DAY_LABELS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+export default async function FacultyTimetablePage({
+  searchParams,
+}: {
+  searchParams: { day?: string };
+}) {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
@@ -18,40 +22,58 @@ export default async function FacultyTimetablePage() {
     redirect("/login");
   }
 
+  const selectedDay = searchParams.day !== undefined ? parseInt(searchParams.day) : 1;
+
   const entries = await prisma.timetableEntry.findMany({
-    where: { facultyId: user.id },
+    where: { 
+      facultyId: user.id,
+      dayOfWeek: selectedDay
+    },
     include: { course: { select: { code: true, name: true } } },
     orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }],
   });
 
-  const timetableEntries: TimetableEntry[] = entries.map((e) => ({
+  const calendarEntries: CalendarEntry[] = entries.map((e) => ({
     id: e.id,
     dayOfWeek: e.dayOfWeek,
-    startTime: e.startTime.toISOString(),
-    endTime: e.endTime.toISOString(),
-    courseCode: e.course.code,
-    courseName: e.course.name,
+    startTime: e.startTime,
+    endTime: e.endTime,
+    title: e.course.code,
+    subtitle: e.course.name,
     room: e.room,
-    section: e.section,
   }));
 
   return (
     <div className="max-w-6xl">
-      <h1 className="mb-6 text-2xl font-bold text-navy-900">My Timetable</h1>
+      <h1 className="mb-6 text-2xl font-bold text-ink">My Timetable</h1>
 
-      {timetableEntries.length === 0 ? (
-        <EmptyState
-          title="No timetable entries"
-          description="You don't have any classes scheduled in the timetable yet."
-          action={
-            <Link href="/faculty/dashboard">
-              <Button variant="primary" size="sm">Go to Dashboard</Button>
+      <div className="mb-6 flex flex-wrap items-center gap-2">
+        {DAY_LABELS.map((label, i) => {
+          if (i === 0) return null; // Skip Sunday
+          return (
+            <Link
+              key={i}
+              href={`/faculty/timetable?day=${i}`}
+              className={`rounded border px-3 py-1.5 text-[13px] font-medium transition-colors ${
+                selectedDay === i
+                  ? "bg-primary text-white border-primary"
+                  : "border-border text-muted hover:text-ink hover:bg-surface"
+              }`}
+            >
+              {label}
             </Link>
-          }
+          )
+        })}
+      </div>
+
+      <div className="bg-bg">
+        <TimetableCalendar 
+          entries={calendarEntries} 
+          startHour={9} 
+          endHour={17} 
+          visibleDays={[selectedDay]} 
         />
-      ) : (
-        <TimetableGrid entries={timetableEntries} />
-      )}
+      </div>
     </div>
   );
 }

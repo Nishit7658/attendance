@@ -1,14 +1,14 @@
 import "dotenv/config";
 import { PrismaClient, Role } from "@prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
-import { Pool } from "pg";
 import bcrypt from "bcryptjs";
 import * as fs from "fs";
 import * as path from "path";
+import { fileURLToPath } from "url";
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const prisma = new PrismaClient();
 
 interface FacultySeed {
   code: string;
@@ -48,6 +48,52 @@ async function main() {
 
   const passwordHash = await bcrypt.hash("password123", 10);
 
+  // 1. Create Organizational Hierarchy
+  const branch = await prisma.branch.upsert({
+    where: { code: "CSE" },
+    update: {},
+    create: {
+      code: "CSE",
+      name: "Computer Science and Engineering",
+    },
+  });
+
+  const semester = await prisma.semester.upsert({
+    where: { number_branchId: { number: 6, branchId: branch.id } },
+    update: {},
+    create: {
+      number: 6,
+      branchId: branch.id,
+    },
+  });
+
+  const division = await prisma.division.upsert({
+    where: { name_semesterId: { name: "A", semesterId: semester.id } },
+    update: {},
+    create: {
+      name: "A",
+      semesterId: semester.id,
+    },
+  });
+
+  const batchA = await prisma.batch.upsert({
+    where: { name_divisionId: { name: "A", divisionId: division.id } },
+    update: {},
+    create: { name: "A", divisionId: division.id },
+  });
+  const batchB = await prisma.batch.upsert({
+    where: { name_divisionId: { name: "B", divisionId: division.id } },
+    update: {},
+    create: { name: "B", divisionId: division.id },
+  });
+  const batchC = await prisma.batch.upsert({
+    where: { name_divisionId: { name: "C", divisionId: division.id } },
+    update: {},
+    create: { name: "C", divisionId: division.id },
+  });
+  const batchMap = { A: batchA.id, B: batchB.id, C: batchC.id } as Record<string, string>;
+
+  // 2. Create Users
   const admin = await prisma.user.upsert({
     where: { email: "admin@college.edu" },
     update: {},
@@ -56,7 +102,7 @@ async function main() {
       name: "Admin User",
       role: Role.ADMIN,
       passwordHash,
-      department: "Administration",
+      branchId: branch.id,
     },
   });
 
@@ -68,7 +114,7 @@ async function main() {
       name: "Head of Department",
       role: Role.HOD,
       passwordHash,
-      department: "Computer Science",
+      branchId: branch.id,
     },
   });
 
@@ -82,7 +128,7 @@ async function main() {
         name: f.name,
         role: Role.FACULTY,
         passwordHash,
-        department: "Computer Science",
+        branchId: branch.id,
       },
     });
     facultyMap.set(f.code, user.id);
@@ -96,7 +142,7 @@ async function main() {
       create: {
         code: c.code,
         name: c.name,
-        department: "Computer Science",
+        branchId: branch.id,
         credits: 3,
       },
     });
@@ -109,14 +155,10 @@ async function main() {
     const facultyId = facultyMap.get(entry.facultyCode);
     const courseId = courseMap.get(entry.courseCode);
 
-    if (!facultyId) {
-      console.warn(`Skipping timetable entry — unknown faculty code: ${entry.facultyCode}`);
-      continue;
-    }
-    if (!courseId) {
-      console.warn(`Skipping timetable entry — unknown course code: ${entry.courseCode}`);
-      continue;
-    }
+    if (!facultyId || !courseId) continue;
+
+    const isAll = entry.section === "ALL";
+    const batchId = isAll ? null : batchMap[entry.section];
 
     await prisma.timetableEntry.create({
       data: {
@@ -126,7 +168,8 @@ async function main() {
         courseId,
         facultyId,
         room: entry.room,
-        section: entry.section,
+        divisionId: division.id,
+        batchId,
       },
     });
   }
@@ -139,7 +182,10 @@ async function main() {
       name: "Student User",
       role: Role.STUDENT,
       passwordHash,
-      department: "Computer Science",
+      branchId: branch.id,
+      semesterId: semester.id,
+      divisionId: division.id,
+      batchId: batchA.id,
     },
   });
 
@@ -161,14 +207,7 @@ async function main() {
     });
   }
 
-  console.log(`Seeded ${defaultConfig.length} system config entries`);
-  console.log(`Seeded ${dbData.faculty.length} faculty members`);
-  console.log(`Seeded ${dbData.courses.length} courses`);
-  console.log(`Seeded ${dbData.timetableEntries.length} timetable entries`);
-  console.log("Admin:", admin.email);
-  console.log("HOD:", hod.email);
-  console.log("Student:", student.email);
-  console.log("All passwords: password123");
+  console.log("Database seeded successfully!");
 }
 
 main()

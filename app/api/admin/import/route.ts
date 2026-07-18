@@ -171,6 +171,7 @@ export async function POST(request: NextRequest) {
             name,
             department,
             credits: isNaN(credits) ? 3 : credits,
+            branchId: "default-branch-id"
           },
         });
 

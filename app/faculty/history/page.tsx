@@ -90,8 +90,8 @@ export default async function FacultyHistoryPage({ searchParams }: PageProps) {
             className={cn(
               "rounded-md px-3 py-1.5 text-sm transition-colors",
               range === r.value && !isCustom
-                ? "bg-navy-700 text-white"
-                : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50",
+                ? "bg-primary text-white"
+                : "border border-border bg-surface text-ink hover:bg-surface-hover",
             )}
           >
             {r.label}
@@ -107,20 +107,20 @@ export default async function FacultyHistoryPage({ searchParams }: PageProps) {
             type="date"
             name="from"
             defaultValue={customFrom ?? ""}
-            className="h-8 rounded border border-slate-300 px-2 text-sm text-slate-700 focus:border-navy-700 focus:outline-none"
+            className="h-8 rounded border border-border bg-bg px-2 text-sm text-ink focus:border-primary focus:outline-none"
             aria-label="From date"
           />
-          <span className="text-xs text-slate-400">to</span>
+          <span className="text-xs text-muted">to</span>
           <input
             type="date"
             name="to"
             defaultValue={customTo ?? ""}
-            className="h-8 rounded border border-slate-300 px-2 text-sm text-slate-700 focus:border-navy-700 focus:outline-none"
+            className="h-8 rounded border border-border bg-bg px-2 text-sm text-ink focus:border-primary focus:outline-none"
             aria-label="To date"
           />
           <button
             type="submit"
-            className="rounded bg-navy-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-navy-800 transition-colors"
+            className="btn-primary px-3 py-1.5 text-xs"
           >
             Go
           </button>

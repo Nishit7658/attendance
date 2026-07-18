@@ -63,6 +63,7 @@ export async function POST(req: Request) {
         facultyId,
         room,
         section,
+        divisionId: "default-division-id",
       },
       include: { course: true, faculty: { select: { id: true, name: true } } },
     });

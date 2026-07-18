@@ -52,15 +52,15 @@ export default function SessionCard({
   };
 
   return (
-    <div className="flex items-center gap-4 border-b border-slate-200 py-3 px-4 hover:bg-slate-50 transition-colors">
+    <div className="flex items-center gap-4 border-b border-border py-3 px-4 hover:bg-surface-hover transition-colors">
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2">
-          <span className="text-sm font-semibold text-slate-900">
+          <span className="text-sm font-semibold text-ink">
             {courseCode}
           </span>
-          <span className="text-sm text-slate-700">{courseName}</span>
+          <span className="text-sm text-muted">{courseName}</span>
         </div>
-        <div className="mt-0.5 flex items-center gap-3 text-xs text-slate-500">
+        <div className="mt-0.5 flex items-center gap-3 text-xs text-muted">
           <span>
             {formatTime(startTime)} – {formatTime(endTime)}
           </span>
@@ -72,7 +72,7 @@ export default function SessionCard({
         <button
           onClick={handleStart}
           disabled={loading}
-          className="rounded bg-navy-700 px-4 py-1.5 text-xs font-medium text-white hover:bg-navy-800 disabled:opacity-50 transition-colors"
+          className="btn-primary px-4 py-1.5 text-xs"
         >
           {loading ? "Starting..." : "Start Session"}
         </button>

@@ -74,9 +74,9 @@ export default async function StudentDashboardPage() {
       </div>
       <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
         {stats.map((stat) => (
-          <div key={stat.label} className="rounded-lg border border-slate-200 bg-white px-5 py-4">
-            <p className="text-2xl font-semibold text-navy-700">{stat.value}</p>
-            <p className="mt-1 text-xs font-medium uppercase tracking-wider text-slate-500">{stat.label}</p>
+          <div key={stat.label} className="rounded-lg border border-border bg-surface px-5 py-4">
+            <p className="text-2xl font-semibold text-primary">{stat.value}</p>
+            <p className="mt-1 text-xs font-medium uppercase tracking-wider text-muted">{stat.label}</p>
           </div>
         ))}
       </div>
@@ -86,29 +86,29 @@ export default async function StudentDashboardPage() {
       {subjectBreakdown.length === 0 ? (
         <p className="mb-8 text-sm text-slate-500">No attendance records yet.</p>
       ) : (
-        <div className="mb-8 overflow-x-auto rounded-lg border border-slate-200">
-          <table className="min-w-full divide-y divide-slate-200">
-            <thead className="bg-slate-50">
+        <div className="mb-8 overflow-x-auto rounded-lg border border-border">
+          <table className="min-w-full divide-y divide-border">
+            <thead className="bg-surface">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">Course</th>
-                <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-slate-500">Attended</th>
-                <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-slate-500">Total</th>
-                <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-slate-500">%</th>
-                <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-slate-500">Status</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted">Course</th>
+                <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-muted">Attended</th>
+                <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-muted">Total</th>
+                <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-muted">%</th>
+                <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-muted">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200 bg-white">
+            <tbody className="divide-y divide-border bg-bg">
               {subjectBreakdown.map((subj) => {
                 const pct = subj.total > 0 ? Math.round((subj.attended / subj.total) * 100) : 0;
                 const isAtRisk = pct < 75;
                 const isBorderline = pct >= 75 && pct < 85;
                 return (
-                  <tr key={subj.code} className="hover:bg-slate-50">
-                    <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-slate-900">
-                      <span className="text-xs text-slate-500">{subj.code}</span> {subj.name}
+                  <tr key={subj.code} className="hover:bg-surface-hover">
+                    <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-ink">
+                      <span className="text-xs text-muted">{subj.code}</span> {subj.name}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-center text-sm text-slate-700">{subj.attended}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-center text-sm text-slate-700">{subj.total}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-center text-sm text-ink">{subj.attended}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-center text-sm text-ink">{subj.total}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-center text-sm font-semibold">{pct}%</td>
                     <td className="whitespace-nowrap px-4 py-3 text-center text-sm">
                       <Badge variant={isAtRisk ? "danger" : isBorderline ? "warning" : "success"}>
@@ -127,22 +127,22 @@ export default async function StudentDashboardPage() {
       {todayRecords.length === 0 ? (
         <p className="text-sm text-slate-500">No sessions today.</p>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-slate-200">
-          <table className="min-w-full divide-y divide-slate-200">
-            <thead className="bg-slate-50">
+        <div className="overflow-x-auto rounded-lg border border-border">
+          <table className="min-w-full divide-y divide-border">
+            <thead className="bg-surface">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">Course</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">Time</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">Status</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted">Course</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted">Time</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200 bg-white">
+            <tbody className="divide-y divide-border bg-bg">
               {todayRecords.map((record) => (
-                <tr key={record.id} className="hover:bg-slate-50">
-                  <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-slate-900">
+                <tr key={record.id} className="hover:bg-surface-hover">
+                  <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-ink">
                     {record.session.course.name}
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm text-slate-700">
+                  <td className="whitespace-nowrap px-4 py-3 text-sm text-ink">
                     {record.session.startTime
                       ? new Date(record.session.startTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
                       : "—"}

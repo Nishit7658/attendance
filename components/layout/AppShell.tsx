@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { Sidebar } from "./Sidebar"
 import { Topbar } from "./Topbar"
+import { usePathname } from "next/navigation"
 
 type Role = "faculty" | "hod" | "admin" | "student"
 
@@ -13,35 +14,37 @@ interface AppShellProps {
 
 export default function AppShell({ children, role }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const pathname = usePathname()
 
   return (
-    <div className="flex min-h-screen" data-main-content>
-      <a
-        href="#main-content"
-        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:rounded focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-navy-700 focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-navy-500"
-      >
-        Skip to main content
-      </a>
-
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-30 bg-black/20 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
+    <div className="relative flex min-h-screen bg-bg overflow-hidden text-ink font-sans" data-main-content>
+      {/* 
+        Instant render container. 
+        Removed all Framer Motion staggered animations for a snappy Pro Tool feel.
+      */}
+      <div className="relative z-10 flex flex-1 h-screen min-w-0">
+        <Sidebar 
+          role={role} 
+          isOpen={sidebarOpen} 
+          onClose={() => setSidebarOpen(false)} 
         />
-      )}
-
-      <Sidebar
-        role={role}
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-      />
-
-      <div className="flex flex-1 flex-col min-w-0">
-        <Topbar
-          onMenuClick={() => setSidebarOpen(true)}
-          sidebarOpen={sidebarOpen}
-        />
-        <main id="main-content" className="flex-1 p-6">{children}</main>
+        
+        <div className="flex flex-1 flex-col min-w-0 bg-bg">
+          <Topbar 
+            onMenuClick={() => setSidebarOpen(true)} 
+            sidebarOpen={sidebarOpen} 
+            className="z-40"
+          />
+          
+          <main 
+            id="main-content" 
+            className="flex-1 overflow-auto p-4 md:p-6 lg:p-8"
+          >
+            <div className="mx-auto max-w-7xl h-full">
+              {children}
+            </div>
+          </main>
+        </div>
       </div>
     </div>
   )

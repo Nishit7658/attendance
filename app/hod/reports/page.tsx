@@ -140,20 +140,20 @@ export default async function HODReportsPage({ searchParams }: PageProps) {
             type="date"
             name="from"
             defaultValue={customFrom ?? ""}
-            className="h-8 rounded border border-slate-300 px-2 text-sm text-slate-700 focus:border-navy-700 focus:outline-none"
+            className="h-8 rounded border border-border bg-bg px-2 text-sm text-ink focus:border-primary focus:outline-none"
             aria-label="From date"
           />
-          <span className="text-xs text-slate-400">to</span>
+          <span className="text-xs text-muted">to</span>
           <input
             type="date"
             name="to"
             defaultValue={customTo ?? ""}
-            className="h-8 rounded border border-slate-300 px-2 text-sm text-slate-700 focus:border-navy-700 focus:outline-none"
+            className="h-8 rounded border border-border bg-bg px-2 text-sm text-ink focus:border-primary focus:outline-none"
             aria-label="To date"
           />
           <button
             type="submit"
-            className="rounded bg-navy-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-navy-800 transition-colors"
+            className="btn-primary px-3 py-1.5 text-xs"
           >
             Go
           </button>
@@ -172,10 +172,10 @@ export default async function HODReportsPage({ searchParams }: PageProps) {
         {stats.map((stat) => (
           <div
             key={stat.label}
-            className="rounded-lg border border-slate-200 bg-white px-5 py-4"
+            className="rounded-lg border border-border bg-surface px-5 py-4"
           >
-            <p className="text-2xl font-semibold text-navy-700">{stat.value}</p>
-            <p className="mt-1 text-xs font-medium uppercase tracking-wider text-slate-500">
+            <p className="text-2xl font-semibold text-primary">{stat.value}</p>
+            <p className="mt-1 text-xs font-medium uppercase tracking-wider text-muted">
               {stat.label}
             </p>
           </div>

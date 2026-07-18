@@ -146,7 +146,7 @@ export default function AdminSettingsPage() {
                       }
                       disabled={!!isSaving}
                       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        currentValue === "true" ? "bg-navy-700" : "bg-slate-300"
+                        currentValue === "true" ? "bg-primary" : "bg-border"
                       }`}
                       aria-label={field.label}
                     >
@@ -162,7 +162,7 @@ export default function AdminSettingsPage() {
                         id={`setting-${field.key}`}
                         type={field.type}
                         defaultValue={currentValue}
-                        className="w-24 rounded border border-slate-300 px-2.5 py-1.5 text-sm text-slate-900 focus:border-navy-700 focus:outline-none"
+                        className="w-24 rounded border border-border bg-bg px-2.5 py-1.5 text-sm text-ink focus:border-primary focus:outline-none"
                         onKeyDown={(e) => {
                           if (e.key === "Enter") {
                             handleSave(field.key, (e.target as HTMLInputElement).value);
@@ -175,7 +175,7 @@ export default function AdminSettingsPage() {
                           if (input) handleSave(field.key, input.value);
                         }}
                         disabled={isSaving}
-                        className="rounded bg-navy-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-navy-800 disabled:opacity-50 transition-colors"
+                        className="btn-secondary px-3 py-1.5 text-xs"
                       >
                         {isSaving ? "Saving..." : "Save"}
                       </button>

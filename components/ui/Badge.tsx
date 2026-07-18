@@ -10,12 +10,12 @@ export function Badge({ variant = "default", children, className }: BadgeProps) 
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
-        variant === "success" && "bg-green-100 text-green-800",
-        variant === "danger" && "bg-red-100 text-red-800",
+        "inline-flex items-center rounded-md px-2.5 py-0.5 text-[var(--fs-caption)] font-[var(--fw-medium)]",
+        variant === "success" && "bg-success-bg text-success",
+        variant === "danger" && "bg-error-bg text-error",
         variant === "warning" && "bg-amber-100 text-amber-800",
-        variant === "neutral" && "bg-slate-100 text-slate-700",
-        variant === "default" && "bg-navy-100 text-navy-800",
+        variant === "neutral" && "bg-surface border border-border text-ink",
+        variant === "default" && "bg-primary/10 text-primary",
         className,
       )}
     >

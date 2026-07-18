@@ -31,26 +31,26 @@ export default async function FacultyDashboardPage() {
         </h1>
         <Link
           href="/faculty/timetable"
-          className="text-xs text-navy-600 hover:text-navy-800 underline transition-colors"
+          className="text-xs text-primary hover:underline transition-colors"
         >
           View full timetable
         </Link>
       </div>
 
       {activeSession && (
-        <div className="mb-6 rounded border border-navy-200 bg-navy-50 px-5 py-4">
+        <div className="mb-6 rounded-lg border border-primary/20 bg-primary/10 px-5 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-navy-900">
+              <p className="text-sm font-medium text-ink">
                 You have an active session — {activeSession.course.name}
               </p>
-              <p className="text-xs text-navy-700 mt-0.5">
+              <p className="text-xs text-muted mt-0.5">
                 {activeSession._count.attendanceRecords} student(s) marked
               </p>
             </div>
             <a
               href={`/faculty/sessions/${activeSession.id}/live`}
-              className="rounded bg-navy-700 px-4 py-2 text-xs font-medium text-white hover:bg-navy-800 transition-colors"
+              className="btn-primary px-4 py-2 text-xs"
             >
               Return to session
             </a>
@@ -59,9 +59,9 @@ export default async function FacultyDashboardPage() {
       )}
 
       {todaySessions.length > 0 ? (
-        <div className="rounded border border-slate-200">
-          <div className="px-4 py-2 border-b border-slate-200 bg-slate-50">
-            <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+        <div className="rounded border border-border">
+          <div className="px-4 py-2 border-b border-border bg-surface">
+            <span className="text-xs font-medium text-muted uppercase tracking-wider">
               Today&apos;s Sessions
             </span>
           </div>
@@ -74,13 +74,13 @@ export default async function FacultyDashboardPage() {
               startTime={entry.startTime.toISOString()}
               endTime={entry.endTime.toISOString()}
               room={entry.room}
-              section={entry.section}
+              section={entry.section || ""}
             />
           ))}
         </div>
       ) : (
-        <div className="rounded border border-slate-200 px-5 py-8 text-center">
-          <p className="text-sm text-slate-500 mb-4">
+        <div className="rounded border border-border px-5 py-8 text-center">
+          <p className="text-sm text-muted mb-4">
             No sessions scheduled today
           </p>
           <AdHocForm />

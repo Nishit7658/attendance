@@ -4,6 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 // ──────────────────────────────────────────────
@@ -30,7 +31,54 @@ enum AttendanceStatus {
 }
 
 // ──────────────────────────────────────────────
-// Models
+// Hierarchical Organization Models
+// ──────────────────────────────────────────────
+
+model Branch {
+  id        String     @id @default(cuid())
+  name      String     @unique
+  code      String     @unique // e.g. "CSE", "IT"
+  semesters Semester[]
+  users     User[]
+  courses   Course[]
+}
+
+model Semester {
+  id        String     @id @default(cuid())
+  number    Int        // e.g. 1 to 8
+  branchId  String
+  branch    Branch     @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  divisions Division[]
+  users     User[]
+
+  @@unique([number, branchId])
+}
+
+model Division {
+  id               String           @id @default(cuid())
+  name             String           // e.g. "A", "B"
+  semesterId       String
+  semester         Semester         @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  batches          Batch[]
+  users            User[]
+  timetableEntries TimetableEntry[]
+
+  @@unique([name, semesterId])
+}
+
+model Batch {
+  id               String           @id @default(cuid())
+  name             String           // e.g. "B1", "B2"
+  divisionId       String
+  division         Division         @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+  users            User[]
+  timetableEntries TimetableEntry[]
+
+  @@unique([name, divisionId])
+}
+
+// ──────────────────────────────────────────────
+// Core Models
 // ──────────────────────────────────────────────
 
 model User {
@@ -43,9 +91,20 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  // Organizational Relations
+  branchId     String?
+  branch       Branch?    @relation(fields: [branchId], references: [id])
+  semesterId   String?
+  semester     Semester?  @relation(fields: [semesterId], references: [id])
+  divisionId   String?
+  division     Division?  @relation(fields: [divisionId], references: [id])
+  batchId      String?
+  batch        Batch?     @relation(fields: [batchId], references: [id])
+
   timetableEntries TimetableEntry[]   @relation("FacultyTimetable")
   sessions         Session[]          @relation("FacultySession")
   attendanceMarked AttendanceRecord[] @relation("MarkedBy")
+  attendanceRecords AttendanceRecord[]
   editLogs         EditLog[]          @relation("EditedBy")
   createdEvents    Event[]            @relation("EventCreator")
   eventScopes      EventScopeItem[]
@@ -57,25 +116,31 @@ model Course {
   id         String @id @default(cuid())
   code       String @unique
   name       String
-  department String
+  department String?
+  branchId   String
   credits    Int    @default(3)
 
+  branch           Branch            @relation(fields: [branchId], references: [id])
   timetableEntries TimetableEntry[]
   sessions         Session[]
 }
 
 model TimetableEntry {
-  id        String   @id @default(cuid())
-  dayOfWeek Int
-  startTime DateTime
-  endTime   DateTime
-  courseId  String
-  facultyId String
-  room      String
-  section   String
+  id         String   @id @default(cuid())
+  dayOfWeek  Int
+  startTime  DateTime
+  endTime    DateTime
+  courseId   String
+  facultyId  String
+  room       String
+  section    String?
+  divisionId String
+  batchId    String? // Null means entire division
 
   course   Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
   faculty  User      @relation("FacultyTimetable", fields: [facultyId], references: [id], onDelete: Cascade)
+  division Division  @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+  batch    Batch?    @relation(fields: [batchId], references: [id], onDelete: Cascade)
   sessions Session[]
 }
 
@@ -108,6 +173,7 @@ model AttendanceRecord {
 
   session  Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   markedBy User    @relation("MarkedBy", fields: [markedById], references: [id])
+  student  User    @relation(fields: [studentId], references: [id])
 
   editLogs EditLog[]
 
@@ -146,7 +212,7 @@ model Event {
   startDate   DateTime
   endDate     DateTime
   scopeType   EventScopeType
-  department  String?        // Used when scopeType is DEPARTMENT
+  department  String?        // Legacy compatibility or update to branchId
   createdById String
   isApplied   Boolean        @default(false)
   createdAt   DateTime       @default(now())

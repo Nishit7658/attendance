@@ -32,10 +32,10 @@ export async function POST(req: Request) {
   if (currentUser?.role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   try {
-    const { code, name, department, credits } = await req.json();
+    const { code, name, department, credits, branchId } = await req.json();
 
-    if (!code || !name || !department) {
-      return NextResponse.json({ error: "Code, name, and department are required" }, { status: 400 });
+    if (!code || !name) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
     const existing = await prisma.course.findUnique({ where: { code } });
@@ -44,7 +44,7 @@ export async function POST(req: Request) {
     }
 
     const course = await prisma.course.create({
-      data: { code, name, department, credits: credits ?? 3 },
+      data: { code, name, department, credits: credits ?? 3, branchId: branchId || "default-branch-id" },
     });
 
     return NextResponse.json({ course }, { status: 201 });

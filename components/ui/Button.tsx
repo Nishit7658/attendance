@@ -18,14 +18,14 @@ export function Button({
   return (
     <button
       className={cn(
-        "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-navy-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-        variant === "primary" && "bg-navy-700 text-white hover:bg-navy-800",
-        variant === "secondary" && "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50",
-        variant === "danger" && "bg-red-600 text-white hover:bg-red-700",
-        variant === "ghost" && "text-slate-600 hover:bg-slate-100",
-        size === "sm" && "px-3 py-1.5 text-xs",
-        size === "md" && "px-4 py-2",
-        size === "lg" && "px-6 py-3 text-base",
+        "inline-flex items-center justify-center rounded-md text-[13px] font-medium transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:cursor-not-allowed disabled:opacity-50",
+        variant === "primary" && "bg-primary text-white hover:bg-primary-hover border border-transparent",
+        variant === "secondary" && "border border-border bg-surface text-ink hover:bg-surface-hover hover:border-muted",
+        variant === "danger" && "bg-error text-white hover:bg-error/90 border border-transparent",
+        variant === "ghost" && "text-muted hover:bg-surface/50 hover:text-ink",
+        size === "sm" && "px-3 py-1.5",
+        size === "md" && "px-5 py-2.5",
+        size === "lg" && "px-8 py-3.5 text-[var(--fs-body)]",
         className,
       )}
       disabled={disabled || loading}

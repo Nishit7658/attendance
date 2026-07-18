@@ -35,28 +35,35 @@ export default async function AdminDashboardPage() {
   ];
 
   return (
-    <div>
-      <h1 className="mb-6 text-2xl font-bold text-navy-900">Admin Dashboard</h1>
-      <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
+    <div className="space-y-8 animate-fade-in">
+      <h1 className="text-3xl font-bold tracking-tight text-ink">
+        Admin Dashboard
+      </h1>
+      
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         {stats.map((stat) => (
-          <div key={stat.label} className="rounded-lg border border-slate-200 bg-white px-5 py-4">
-            <p className="text-2xl font-semibold text-navy-700">{stat.value}</p>
-            <p className="mt-1 text-xs font-medium uppercase tracking-wider text-slate-500">{stat.label}</p>
+          <div key={stat.label} className="relative overflow-hidden rounded-2xl border border-border bg-surface p-6 shadow-sm transition-all hover:shadow-md hover:bg-surface-hover group">
+            <div className="absolute -right-4 -top-4 w-24 h-24 bg-primary/5 rounded-full blur-xl group-hover:bg-primary/10 transition-colors" />
+            <p className="text-3xl font-bold text-primary">{stat.value}</p>
+            <p className="mt-2 text-xs font-semibold uppercase tracking-wider text-muted">{stat.label}</p>
           </div>
         ))}
       </div>
-      <h2 className="mb-4 text-lg font-semibold text-slate-900">Quick Links</h2>
-      <div className="grid grid-cols-2 gap-4">
-        {quickLinks.map((link) => (
-          <Link
-            key={link.href}
-            href={link.href}
-            className="rounded-lg border border-slate-200 bg-white px-5 py-4 transition-colors hover:bg-slate-50"
-          >
-            <h3 className="font-medium text-navy-700">{link.label}</h3>
-            <p className="mt-1 text-sm text-slate-500">{link.description}</p>
-          </Link>
-        ))}
+
+      <div>
+        <h2 className="mb-4 text-xl font-semibold text-ink">Quick Links</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {quickLinks.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className="group flex flex-col rounded-2xl border border-border bg-surface p-6 shadow-sm transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-primary/5 hover:bg-surface-hover hover:border-primary/20"
+            >
+              <h3 className="font-semibold text-lg text-ink group-hover:text-primary transition-colors">{link.label}</h3>
+              <p className="mt-2 text-sm text-muted">{link.description}</p>
+            </Link>
+          ))}
+        </div>
       </div>
     </div>
   );
