@@ -1,4 +1,4 @@
-# Puff Attendance
+# Attendance
 
 College Attendance Management System — digital attendance for faculty, students, HODs, and admin across multiple portals.
 
