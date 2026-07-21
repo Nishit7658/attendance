@@ -8,22 +8,23 @@ export default async function HODDashboardPage() {
 
   const currentUser = await prisma.user.findUnique({
     where: { email: session.user.email },
+    include: { branch: true }
   });
 
   if (!currentUser || (currentUser.role !== "HOD" && currentUser.role !== "ADMIN")) {
     redirect("/faculty/dashboard");
   }
 
-  const department = currentUser.department;
-  if (!department) {
-    return <p className="text-sm text-slate-500">No department assigned to your account.</p>;
+  const branch = currentUser.branch;
+  if (!branch) {
+    return <p className="text-sm text-muted">No department assigned to your account.</p>;
   }
 
   const [facultyCount, todaySessions, recentSessions] = await Promise.all([
-    prisma.user.count({ where: { role: "FACULTY", department } }),
-    prisma.session.count({ where: { date: new Date(), faculty: { department } } }),
+    prisma.user.count({ where: { role: "FACULTY", branchId: branch.id } }),
+    prisma.session.count({ where: { date: new Date(), faculty: { branchId: branch.id } } }),
     prisma.session.findMany({
-      where: { date: new Date(), faculty: { department } },
+      where: { date: new Date(), faculty: { branchId: branch.id } },
       include: { course: true, faculty: true, _count: { select: { attendanceRecords: true } } },
       orderBy: { startTime: "asc" },
       take: 10,
@@ -32,41 +33,47 @@ export default async function HODDashboardPage() {
 
   const stats = [
     { label: "Faculty Members", value: facultyCount },
-    { label: "Today&apos;s Sessions", value: todaySessions },
+    { label: "Today's Sessions", value: todaySessions },
   ];
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold text-navy-900">{department} Department</h1>
+      <h1 className="mb-6 text-2xl font-bold text-ink">{branch.name} Department</h1>
       <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-3">
         {stats.map((stat) => (
-          <div key={stat.label} className="rounded-lg border border-slate-200 bg-white px-5 py-4">
-            <p className="text-2xl font-semibold text-navy-700">{stat.value}</p>
-            <p className="mt-1 text-xs font-medium uppercase tracking-wider text-slate-500">{stat.label}</p>
+          <div key={stat.label} className="rounded-lg border border-border bg-surface px-5 py-4 shadow-sm">
+            <p className="text-2xl font-semibold text-ink">{stat.value}</p>
+            <p className="mt-1 text-xs font-medium uppercase tracking-wider text-muted">{stat.label}</p>
           </div>
         ))}
       </div>
-      <h2 className="mb-4 text-lg font-semibold text-slate-900">Today&apos;s Sessions</h2>
+      <h2 className="mb-4 text-lg font-semibold text-ink">Today's Sessions</h2>
       {recentSessions.length === 0 ? (
-        <p className="text-sm text-slate-500">No sessions scheduled today.</p>
+        <p className="text-sm text-muted">No sessions scheduled today.</p>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-slate-200">
-          <table className="min-w-full divide-y divide-slate-200">
-            <thead className="bg-slate-50">
+        <div className="overflow-x-auto rounded-lg border border-border shadow-sm">
+          <table className="min-w-full divide-y divide-border">
+            <thead className="bg-bg">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">Course</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">Faculty</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">Students</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">Status</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted">Course</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted">Faculty</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted">Students</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200 bg-white">
+            <tbody className="divide-y divide-border bg-surface">
               {recentSessions.map((s) => (
-                <tr key={s.id} className="hover:bg-slate-50">
-                  <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-slate-900">{s.course.name}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm text-slate-700">{s.faculty.name}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm text-slate-700">{s._count.attendanceRecords}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm text-slate-700">{s.status}</td>
+                <tr key={s.id} className="hover:bg-bg transition-colors">
+                  <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-ink">{s.course.name}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-sm text-muted">{s.faculty.name}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-sm text-muted">{s._count.attendanceRecords}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-sm text-muted">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                      s.status === 'ACTIVE' ? 'bg-success/20 text-success border border-success/30' : 'bg-bg text-muted border border-border'
+                    }`}>
+                      {s.status}
+                    </span>
+                  </td>
                 </tr>
               ))}
             </tbody>

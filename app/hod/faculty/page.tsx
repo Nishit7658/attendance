@@ -13,19 +13,20 @@ export default async function HODFacultyPage() {
 
   const currentUser = await prisma.user.findUnique({
     where: { email: session.user.email },
+    include: { branch: true }
   });
 
   if (!currentUser || (currentUser.role !== "HOD" && currentUser.role !== "ADMIN")) {
     redirect("/faculty/dashboard");
   }
 
-  const department = currentUser.department;
-  if (!department) {
-    return <p className="text-sm text-slate-500">No department assigned.</p>;
+  const branch = currentUser.branch;
+  if (!branch) {
+    return <p className="text-sm text-muted">No department assigned.</p>;
   }
 
   const facultyList = await prisma.user.findMany({
-    where: { role: "FACULTY", department },
+    where: { role: "FACULTY", branchId: branch.id },
     select: { id: true, name: true, email: true },
   });
 
@@ -42,7 +43,7 @@ export default async function HODFacultyPage() {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold text-navy-900">Faculty Members</h1>
+      <h1 className="mb-6 text-2xl font-bold text-ink">Faculty Members</h1>
       {facultyList.length === 0 ? (
         <EmptyState
           title="No faculty members"
@@ -63,7 +64,7 @@ export default async function HODFacultyPage() {
               const sessionCount = countMap.get(faculty.id) ?? 0;
               return (
                 <TableRow key={faculty.id}>
-                  <TableCell className="font-medium text-slate-900">
+                  <TableCell className="font-medium text-ink">
                     {faculty.name}
                   </TableCell>
                   <TableCell>{faculty.email}</TableCell>

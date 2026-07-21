@@ -61,13 +61,13 @@ export function Topbar({ onMenuClick, sidebarOpen, className }: TopbarProps) {
       role="banner"
       aria-label="Top bar"
       className={cn(
-        "flex h-14 items-center gap-4 bg-[#0f172a] px-4 lg:px-6 sticky top-0 z-20 border-b border-border shadow-sm",
+        "flex h-14 items-center gap-4 bg-surface px-4 lg:px-6 sticky top-0 z-20 border-b border-border shadow-sm",
         className
       )}
     >
       <button
         onClick={onMenuClick}
-        className="text-muted hover:text-white transition-colors lg:hidden"
+        className="text-muted hover:text-ink transition-colors lg:hidden"
         aria-label="Open menu"
         aria-controls="sidebar"
         aria-expanded={sidebarOpen}
@@ -77,7 +77,7 @@ export function Topbar({ onMenuClick, sidebarOpen, className }: TopbarProps) {
 
       <div className="flex-1 flex items-center">
         {/* Placeholder for Search - typical in Pro Tools */}
-        <div className="hidden md:flex items-center bg-black/20 border border-white/10 rounded px-3 py-1.5 w-64">
+        <div className="hidden md:flex items-center bg-bg border border-border rounded px-3 py-1.5 w-64 shadow-inner">
           <span className="text-xs text-muted">Search...</span>
         </div>
       </div>
@@ -86,14 +86,14 @@ export function Topbar({ onMenuClick, sidebarOpen, className }: TopbarProps) {
         <button
           onClick={() => setShowNotifications(!showNotifications)}
           className={cn(
-            "relative p-2 text-muted hover:text-white transition-colors rounded hover:bg-white/5",
-            showNotifications && "bg-white/5 text-white"
+            "relative p-2 text-muted hover:text-ink transition-colors rounded hover:bg-bg",
+            showNotifications && "bg-bg text-ink"
           )}
           aria-label="Notifications"
         >
           <Bell className="h-4 w-4" />
           {hasUnread && (
-            <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-success border border-[#0f172a]" />
+            <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-success border border-surface" />
           )}
         </button>
 
@@ -144,15 +144,15 @@ export function Topbar({ onMenuClick, sidebarOpen, className }: TopbarProps) {
         </span>
       )}
 
-      <div className="flex items-center gap-2 pl-3 border-l border-white/10 ml-1">
+      <div className="flex items-center gap-2 pl-3 border-l border-border ml-1">
         <button
-          className="flex items-center gap-2 group rounded hover:bg-white/5 p-1 transition-colors"
+          className="flex items-center gap-2 group rounded hover:bg-bg p-1 transition-colors"
           aria-label="User menu"
         >
-          <div className="flex h-7 w-7 items-center justify-center rounded bg-primary/20 text-primary">
+          <div className="flex h-7 w-7 items-center justify-center rounded bg-primary/10 text-primary">
             <User className="h-4 w-4" />
           </div>
-          <span className="hidden text-sm font-medium text-ink sm:block group-hover:text-white">
+          <span className="hidden text-sm font-medium text-ink sm:block group-hover:text-primary">
             {userName}
           </span>
         </button>

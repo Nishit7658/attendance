@@ -1,24 +1,24 @@
 :root {
-  /* Primary Action Blue (RGB values for Tailwind opacity support) */
-  --color-primary: 37 99 235;
-  --color-primary-hover: 29 78 216;
-  --color-primary-active: 30 64 175;
+  /* Primary Action Blue (Deep Academic Royal Blue) */
+  --color-primary: 30 58 138;
+  --color-primary-hover: 30 64 175;
+  --color-primary-active: 29 78 216;
   
-  /* Backgrounds & Surfaces (Docker Desktop Pro Tool Theme) */
-  --color-bg: 20 21 23;          /* Main App Background (#141517) */
-  --color-surface: 30 30 34;     /* Panels, Cards (#1e1e22) */
-  --color-surface-hover: 45 45 50; /* Hover state for rows */
+  /* Backgrounds & Surfaces (Clean Light Theme) */
+  --color-bg: 241 245 249;       /* Slate 100 - Softer gray background */
+  --color-surface: 255 255 255;  /* White Panels, Cards */
+  --color-surface-hover: 248 250 252; /* Slate 50 hover state */
 
-  /* Text & Strokes */
-  --color-ink: 241 245 249;      /* Light Text */
-  --color-muted: 148 163 184;    /* Secondary Text */
-  --color-border: 50 50 55;      /* Crisp borders */
+  /* Text & Strokes (High Contrast for maximum visibility) */
+  --color-ink: 15 23 42;         /* Very Dark Slate 900 Text */
+  --color-muted: 71 85 105;      /* Secondary Text */
+  --color-border: 203 213 225;   /* Slate 300 - Darker borders for definition */
   
   /* Semantics */
-  --color-error: 239 68 68;      /* Red */
-  --color-error-bg: 69 10 10;
-  --color-success: 34 197 94;    /* Green (Running dot) */
-  --color-success-bg: 20 83 45;
+  --color-error: 220 38 38;      /* Red */
+  --color-error-bg: 254 226 226;
+  --color-success: 22 163 74;    /* Green */
+  --color-success-bg: 220 252 231;
 
   /* Typography Scale */
   --fs-headline: 1.5rem;

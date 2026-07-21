@@ -28,19 +28,20 @@ export default async function HODSessionsPage({ searchParams }: PageProps) {
 
   const currentUser = await prisma.user.findUnique({
     where: { email: session.user.email },
+    include: { branch: true },
   });
 
   if (!currentUser || (currentUser.role !== "HOD" && currentUser.role !== "ADMIN")) {
     redirect("/faculty/dashboard");
   }
 
-  const department = currentUser.department;
-  if (!department) {
-    return <p className="text-sm text-slate-500">No department assigned.</p>;
+  const branch = currentUser.branch;
+  if (!branch) {
+    return <p className="text-sm text-muted">No department assigned.</p>;
   }
 
   const facultyMembers = await prisma.user.findMany({
-    where: { role: "FACULTY", department },
+    where: { role: "FACULTY", branchId: branch.id },
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });
@@ -53,7 +54,7 @@ export default async function HODSessionsPage({ searchParams }: PageProps) {
   const todaySessions = await prisma.session.findMany({
     where: {
       date: new Date(),
-      faculty: { department },
+      faculty: { branchId: branch.id },
       ...(facultyFilter ? { facultyId: facultyFilter } : {}),
     },
     include: {
@@ -66,9 +67,10 @@ export default async function HODSessionsPage({ searchParams }: PageProps) {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold text-navy-900">Today&apos;s Sessions</h1>
-
-      <FacultyFilter facultyMembers={facultyMembers} currentFacultyId={facultyFilter} />
+      <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+        <h1 className="text-2xl font-bold text-ink">Department Sessions</h1>
+        <FacultyFilter facultyMembers={facultyMembers} currentFacultyId={facultyFilter} />
+      </div>
 
       {todaySessions.length === 0 ? (
         <EmptyState
@@ -82,35 +84,34 @@ export default async function HODSessionsPage({ searchParams }: PageProps) {
       ) : (
         <Table>
           <TableHeader>
-            <tr>
+            <TableRow>
               <TableHead>Course</TableHead>
               <TableHead>Faculty</TableHead>
+              <TableHead>Date</TableHead>
               <TableHead>Time</TableHead>
-              <TableHead>Students Marked</TableHead>
               <TableHead>Status</TableHead>
-            </tr>
+              <TableHead>Students Marked</TableHead>
+            </TableRow>
           </TableHeader>
           <TableBody>
             {todaySessions.map((s) => (
-              <TableRow
-                key={s.id}
-                className={cn(
-                  s.status === "ACTIVE" && "border-l-2 border-l-navy-500 bg-navy-50/30",
-                )}
-              >
-                <TableCell className="font-medium text-slate-900">
+              <TableRow key={s.id}>
+                <TableCell className="font-medium text-ink">
                   {s.course.name}
                 </TableCell>
                 <TableCell>{s.faculty.name}</TableCell>
+                <TableCell>{new Date(s.date).toLocaleDateString()}</TableCell>
                 <TableCell>
-                  {formatTime(s.startTime)} &ndash; {formatTime(s.endTime)}
+                  {s.startTime ? new Date(s.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "-"} 
+                  {" - "}
+                  {s.endTime ? new Date(s.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "-"}
                 </TableCell>
-                <TableCell>{s._count.attendanceRecords}</TableCell>
                 <TableCell>
-                  <Badge variant={statusVariant[s.status] ?? "neutral"}>
+                  <Badge variant={s.status === "ACTIVE" ? "success" : s.status === "ENDED" ? "neutral" : "primary"}>
                     {s.status}
                   </Badge>
                 </TableCell>
+                <TableCell>{s._count.attendanceRecords}</TableCell>
               </TableRow>
             ))}
           </TableBody>

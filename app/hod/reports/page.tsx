@@ -20,15 +20,16 @@ export default async function HODReportsPage({ searchParams }: PageProps) {
 
   const currentUser = await prisma.user.findUnique({
     where: { email: session.user.email },
+    include: { branch: true }
   });
 
   if (!currentUser || (currentUser.role !== "HOD" && currentUser.role !== "ADMIN")) {
     redirect("/faculty/dashboard");
   }
 
-  const department = currentUser.department;
-  if (!department) {
-    return <p className="text-sm text-slate-500">No department assigned.</p>;
+  const branch = currentUser.branch;
+  if (!branch) {
+    return <p className="text-sm text-muted">No department assigned.</p>;
   }
 
   // Determine date range
@@ -59,16 +60,16 @@ export default async function HODReportsPage({ searchParams }: PageProps) {
     rangeLabel = `This Month (${formatDate(rangeStart)} – ${formatDate(rangeEnd)})`;
   }
 
-  const [facultyList, monthSessionCount] = await Promise.all([
+  const [facultyList, totalSessions] = await Promise.all([
     prisma.user.findMany({
-      where: { role: "FACULTY", department },
-      select: { id: true, name: true },
+      where: { role: "FACULTY", branchId: branch.id },
+      select: { id: true, name: true, email: true },
       orderBy: { name: "asc" },
     }),
     prisma.session.count({
       where: {
         date: { gte: rangeStart, lte: rangeEnd },
-        faculty: { department },
+        faculty: { branchId: branch.id },
       },
     }),
   ]);
@@ -76,7 +77,7 @@ export default async function HODReportsPage({ searchParams }: PageProps) {
   const attendanceRecords = await prisma.attendanceRecord.findMany({
     where: {
       session: {
-        faculty: { department },
+        faculty: { branchId: branch.id },
         date: { gte: rangeStart, lte: rangeEnd },
       },
     },
@@ -88,10 +89,6 @@ export default async function HODReportsPage({ searchParams }: PageProps) {
       },
     },
   });
-
-  const totalRecords = attendanceRecords.length;
-  const presentRecords = attendanceRecords.filter((r) => r.status === "PRESENT").length;
-  const avgAttendance = totalRecords > 0 ? Math.round((presentRecords / totalRecords) * 100) : 0;
 
   const attendanceMap = new Map<
     string,
@@ -113,6 +110,7 @@ export default async function HODReportsPage({ searchParams }: PageProps) {
     return {
       id: faculty.id,
       name: faculty.name,
+      email: faculty.email,
       sessionsConducted: data?.sessions.size ?? 0,
       avgAttendance: data && data.total > 0
         ? Math.round((data.present / data.total) * 100)
@@ -120,17 +118,11 @@ export default async function HODReportsPage({ searchParams }: PageProps) {
     };
   }).sort((a, b) => b.sessionsConducted - a.sessionsConducted);
 
-  const stats = [
-    { label: "Faculty Members", value: facultyList.length },
-    { label: "Sessions in Period", value: monthSessionCount },
-    { label: "Avg Attendance", value: `${avgAttendance}%` },
-  ];
-
   const isCustom = !!customFrom && !!customTo;
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold text-navy-900">{department} Reports</h1>
+      <h1 className="mb-6 text-2xl font-bold text-ink">{branch.name} Reports</h1>
 
       {/* Date range picker */}
       <div className="mb-6 flex flex-wrap items-center gap-2">
@@ -168,24 +160,21 @@ export default async function HODReportsPage({ searchParams }: PageProps) {
         </form>
       </div>
 
-      <div className="mb-8 grid grid-cols-3 gap-4">
-        {stats.map((stat) => (
-          <div
-            key={stat.label}
-            className="rounded-lg border border-border bg-surface px-5 py-4"
-          >
-            <p className="text-2xl font-semibold text-primary">{stat.value}</p>
-            <p className="mt-1 text-xs font-medium uppercase tracking-wider text-muted">
-              {stat.label}
-            </p>
-          </div>
-        ))}
+      <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
+          <p className="text-2xl font-semibold text-ink">{facultyList.length}</p>
+          <p className="text-sm font-medium text-muted">Total Faculty</p>
+        </div>
+        <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
+          <p className="text-2xl font-semibold text-ink">{totalSessions}</p>
+          <p className="text-sm font-medium text-muted">Total Sessions Conducted</p>
+        </div>
       </div>
 
       <p className="mb-4 text-xs text-slate-500">{rangeLabel}</p>
 
-      <h2 className="mb-4 text-lg font-semibold text-slate-900">
-        Per-Faculty Attendance
+      <h2 className="mb-4 text-lg font-semibold text-ink">
+        Faculty Overview
       </h2>
 
       {facultySummaries.length === 0 ? (
@@ -198,6 +187,7 @@ export default async function HODReportsPage({ searchParams }: PageProps) {
           <TableHeader>
             <tr>
               <TableHead>Faculty</TableHead>
+              <TableHead>Email</TableHead>
               <TableHead>Sessions Conducted</TableHead>
               <TableHead>Avg Attendance</TableHead>
             </tr>
@@ -205,7 +195,8 @@ export default async function HODReportsPage({ searchParams }: PageProps) {
           <TableBody>
             {facultySummaries.map((f) => (
               <TableRow key={f.id}>
-                <TableCell className="font-medium text-slate-900">{f.name}</TableCell>
+                <TableCell className="font-medium text-ink">{f.name}</TableCell>
+                <TableCell className="text-muted">{f.email}</TableCell>
                 <TableCell>{f.sessionsConducted}</TableCell>
                 <TableCell>
                   <Badge

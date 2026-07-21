@@ -89,7 +89,7 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
     <aside
       id="sidebar"
       className={cn(
-        "flex h-full flex-col bg-[#141517] border-r border-border transition-[width] duration-200 ease-in-out z-40",
+        "flex h-full flex-col bg-surface border-r border-border transition-[width] duration-200 ease-in-out z-40",
         "fixed inset-y-0 left-0",
         "lg:static lg:translate-x-0",
         isCollapsed ? "lg:w-16" : "lg:w-64",
@@ -103,14 +103,14 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
         )}
       >
         {!isCollapsed && (
-          <div className="flex items-center gap-3 text-lg font-semibold text-white">
+          <div className="flex items-center gap-3 text-lg font-semibold text-ink">
             <RoleIcon className="h-5 w-5 text-primary" />
             <span className="tracking-tight">Register</span>
           </div>
         )}
         <button
           onClick={() => onClose?.()}
-          className="ml-auto text-muted hover:text-white transition-colors lg:hidden"
+          className="ml-auto text-muted hover:text-ink transition-colors lg:hidden"
           aria-label="Close sidebar"
         >
           <X className="h-5 w-5" />
@@ -118,7 +118,7 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
         <button
           onClick={() => setIsCollapsed((prev) => !prev)}
           className={cn(
-            "text-muted hover:text-white transition-colors",
+            "text-muted hover:text-ink transition-colors",
             "hidden lg:block",
             isCollapsed ? "mx-auto" : "ml-auto"
           )}
@@ -141,13 +141,13 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
               className={cn(
                 "flex items-center gap-3 rounded px-2.5 py-2 text-[13px] font-medium transition-colors group",
                 isActive
-                  ? "bg-surface text-white"
-                  : "text-muted hover:bg-surface/50 hover:text-white"
+                  ? "bg-bg text-ink shadow-sm border border-border"
+                  : "text-muted hover:bg-bg hover:text-ink"
               )}
             >
               <Icon className={cn(
                 "h-4 w-4 shrink-0", 
-                isActive ? "text-primary" : "text-muted group-hover:text-white"
+                isActive ? "text-primary" : "text-muted group-hover:text-primary"
               )} />
               {!isCollapsed && <span>{item.label}</span>}
             </Link>
