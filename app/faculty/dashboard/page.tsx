@@ -26,7 +26,7 @@ export default async function FacultyDashboardPage() {
   return (
     <div className="max-w-3xl">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-semibold text-slate-900">
+        <h1 className="text-xl font-semibold text-ink">
           Faculty Dashboard
         </h1>
         <Link

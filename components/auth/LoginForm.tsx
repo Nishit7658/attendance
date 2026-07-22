@@ -121,7 +121,7 @@ export function LoginForm() {
         </p>
         <div className="grid grid-cols-2 gap-2">
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
             type="button"
             className="text-xs"
@@ -131,7 +131,7 @@ export function LoginForm() {
             Admin
           </Button>
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
             type="button"
             className="text-xs"
@@ -141,7 +141,7 @@ export function LoginForm() {
             HOD
           </Button>
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
             type="button"
             className="text-xs"
@@ -151,7 +151,7 @@ export function LoginForm() {
             Faculty
           </Button>
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
             type="button"
             className="text-xs"

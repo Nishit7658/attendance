@@ -107,7 +107,7 @@ export default async function HODSessionsPage({ searchParams }: PageProps) {
                   {s.endTime ? new Date(s.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "-"}
                 </TableCell>
                 <TableCell>
-                  <Badge variant={s.status === "ACTIVE" ? "success" : s.status === "ENDED" ? "neutral" : "primary"}>
+                  <Badge variant={s.status === "ACTIVE" ? "success" : s.status === "ENDED" ? "neutral" : "default"}>
                     {s.status}
                   </Badge>
                 </TableCell>
