@@ -20,9 +20,8 @@ export default async function StudentTimetablePage({
 
   if (!currentUser || currentUser.role !== "STUDENT") redirect("/faculty/dashboard");
 
-  // Fetch divisions (only CE divisions) to match admin portal
+  // Fetch all divisions
   const divisions = await prisma.division.findMany({
-    where: { name: { startsWith: 'CE' } },
     orderBy: { name: 'asc' }
   });
 

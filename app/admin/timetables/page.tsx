@@ -21,9 +21,8 @@ export default async function AdminTimetablesPage({
 
   if (currentUser?.role !== "ADMIN") redirect("/faculty/dashboard");
 
-  // Fetch divisions (only CE divisions)
+  // Fetch all divisions
   const divisions = await prisma.division.findMany({
-    where: { name: { startsWith: 'CE' } },
     orderBy: { name: 'asc' }
   });
 

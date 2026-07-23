@@ -16,15 +16,16 @@ export default async function HODTimetablePage({
 
   const currentUser = await prisma.user.findUnique({
     where: { email: session.user.email },
+    include: { branch: true },
   });
 
   if (!currentUser || (currentUser.role !== "HOD" && currentUser.role !== "ADMIN")) {
     redirect("/faculty/dashboard");
   }
 
-  const department = currentUser.department;
+  const branch = currentUser.branch;
 
-  if (!department) {
+  if (!branch) {
     return <p className="text-sm text-muted">No department assigned to your account.</p>;
   }
 
@@ -32,7 +33,7 @@ export default async function HODTimetablePage({
 
   const entries = await prisma.timetableEntry.findMany({
     where: { 
-      faculty: { department },
+      faculty: { branchId: branch.id },
       dayOfWeek: selectedDay
     },
     include: {
@@ -55,7 +56,7 @@ export default async function HODTimetablePage({
   return (
     <div className="max-w-6xl">
       <h1 className="mb-6 text-2xl font-bold text-ink">
-        {department} Timetable
+        {branch.name} Timetable
       </h1>
 
       <div className="mb-6 flex flex-wrap items-center gap-2">
