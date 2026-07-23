@@ -28,7 +28,9 @@ export default async function StudentTimetablePage({
   // If division is selected in URL use it, otherwise default to first division
   const selectedDivId = searchParams.div || divisions[0]?.id;
   
-  const selectedDay = searchParams.day !== undefined ? parseInt(searchParams.day) : 1;
+  const dayParam = searchParams.day;
+  const selectedDay = dayParam && dayParam !== "all" ? parseInt(dayParam) : undefined;
+  const visibleDays = selectedDay !== undefined ? [selectedDay] : [1, 2, 3, 4, 5, 6];
 
   let entries: any[] = [];
 
@@ -36,7 +38,7 @@ export default async function StudentTimetablePage({
     entries = await prisma.timetableEntry.findMany({
       where: { 
         divisionId: selectedDivId,
-        dayOfWeek: selectedDay 
+        ...(selectedDay !== undefined ? { dayOfWeek: selectedDay } : {})
       },
       include: {
         course: { select: { code: true, name: true } },
@@ -68,7 +70,7 @@ export default async function StudentTimetablePage({
           {divisions.map(div => (
             <Link
               key={div.id}
-              href={`/student/timetable?div=${div.id}&day=${selectedDay}`}
+              href={`/student/timetable?div=${div.id}${dayParam ? `&day=${dayParam}` : ""}`}
               className={`rounded-full px-4 py-1.5 text-[14px] font-semibold transition-colors shrink-0 ${
                 selectedDivId === div.id
                   ? "bg-primary text-white"
@@ -82,6 +84,16 @@ export default async function StudentTimetablePage({
 
         {/* Day Selector */}
         <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href={`/student/timetable?div=${selectedDivId}&day=all`}
+            className={`rounded border px-3 py-1.5 text-[13px] font-medium transition-colors ${
+              selectedDay === undefined
+                ? "bg-primary text-white border-primary"
+                : "border-border text-muted hover:text-ink hover:bg-surface"
+            }`}
+          >
+            All Week
+          </Link>
           {DAY_LABELS.map((label, i) => {
             if (i === 0) return null; // Skip Sunday
             return (
@@ -106,7 +118,7 @@ export default async function StudentTimetablePage({
           entries={calendarEntries} 
           startHour={9} 
           endHour={17} 
-          visibleDays={[selectedDay]} 
+          visibleDays={visibleDays} 
         />
       </div>
     </div>

@@ -29,12 +29,14 @@ export default async function HODTimetablePage({
     return <p className="text-sm text-muted">No department assigned to your account.</p>;
   }
 
-  const selectedDay = searchParams.day !== undefined ? parseInt(searchParams.day) : 1;
+  const dayParam = searchParams.day;
+  const selectedDay = dayParam && dayParam !== "all" ? parseInt(dayParam) : undefined;
+  const visibleDays = selectedDay !== undefined ? [selectedDay] : [1, 2, 3, 4, 5, 6];
 
   const entries = await prisma.timetableEntry.findMany({
     where: { 
       faculty: { branchId: branch.id },
-      dayOfWeek: selectedDay
+      ...(selectedDay !== undefined ? { dayOfWeek: selectedDay } : {})
     },
     include: {
       course: { select: { code: true, name: true } },
@@ -60,6 +62,16 @@ export default async function HODTimetablePage({
       </h1>
 
       <div className="mb-6 flex flex-wrap items-center gap-2">
+        <Link
+          href="/hod/timetable?day=all"
+          className={`rounded border px-3 py-1.5 text-[13px] font-medium transition-colors ${
+            selectedDay === undefined
+              ? "bg-primary text-white border-primary"
+              : "border-border text-muted hover:text-ink hover:bg-surface"
+          }`}
+        >
+          All Week
+        </Link>
         {DAY_LABELS.map((label, i) => {
           if (i === 0) return null; // Skip Sunday
           return (
@@ -83,7 +95,7 @@ export default async function HODTimetablePage({
           entries={calendarEntries} 
           startHour={9} 
           endHour={17} 
-          visibleDays={[selectedDay]} 
+          visibleDays={visibleDays} 
         />
       </div>
     </div>

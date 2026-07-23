@@ -22,12 +22,14 @@ export default async function FacultyTimetablePage({
     redirect("/login");
   }
 
-  const selectedDay = searchParams.day !== undefined ? parseInt(searchParams.day) : 1;
+  const dayParam = searchParams.day;
+  const selectedDay = dayParam && dayParam !== "all" ? parseInt(dayParam) : undefined;
+  const visibleDays = selectedDay !== undefined ? [selectedDay] : [1, 2, 3, 4, 5, 6];
 
   const entries = await prisma.timetableEntry.findMany({
     where: { 
       facultyId: user.id,
-      dayOfWeek: selectedDay
+      ...(selectedDay !== undefined ? { dayOfWeek: selectedDay } : {})
     },
     include: { course: { select: { code: true, name: true } } },
     orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }],
@@ -48,6 +50,16 @@ export default async function FacultyTimetablePage({
       <h1 className="mb-6 text-2xl font-bold text-ink">My Timetable</h1>
 
       <div className="mb-6 flex flex-wrap items-center gap-2">
+        <Link
+          href="/faculty/timetable?day=all"
+          className={`rounded border px-3 py-1.5 text-[13px] font-medium transition-colors ${
+            selectedDay === undefined
+              ? "bg-primary text-white border-primary"
+              : "border-border text-muted hover:text-ink hover:bg-surface"
+          }`}
+        >
+          All Week
+        </Link>
         {DAY_LABELS.map((label, i) => {
           if (i === 0) return null; // Skip Sunday
           return (
@@ -71,7 +83,7 @@ export default async function FacultyTimetablePage({
           entries={calendarEntries} 
           startHour={9} 
           endHour={17} 
-          visibleDays={[selectedDay]} 
+          visibleDays={visibleDays} 
         />
       </div>
     </div>

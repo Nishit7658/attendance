@@ -68,10 +68,28 @@ async function main() {
   });
 
   const division = await prisma.division.upsert({
-    where: { name_semesterId: { name: "A", semesterId: semester.id } },
-    update: {},
+    where: { name_semesterId: { name: "CE 1", semesterId: semester.id } },
+    update: { name: "CE 1" },
     create: {
-      name: "A",
+      name: "CE 1",
+      semesterId: semester.id,
+    },
+  });
+
+  await prisma.division.upsert({
+    where: { name_semesterId: { name: "CE 2", semesterId: semester.id } },
+    update: { name: "CE 2" },
+    create: {
+      name: "CE 2",
+      semesterId: semester.id,
+    },
+  });
+
+  await prisma.division.upsert({
+    where: { name_semesterId: { name: "CE 3", semesterId: semester.id } },
+    update: { name: "CE 3" },
+    create: {
+      name: "CE 3",
       semesterId: semester.id,
     },
   });

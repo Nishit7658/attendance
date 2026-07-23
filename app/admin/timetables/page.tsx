@@ -28,13 +28,14 @@ export default async function AdminTimetablesPage({
 
   const selectedDivId = searchParams.div || divisions[0]?.id;
   
-  // Default to Monday (1) if no day is selected, since we are removing the "All Week" option
-  const selectedDay = searchParams.day !== undefined ? parseInt(searchParams.day) : 1;
+  const dayParam = searchParams.day;
+  const selectedDay = dayParam && dayParam !== "all" ? parseInt(dayParam) : undefined;
+  const visibleDays = selectedDay !== undefined ? [selectedDay] : [1, 2, 3, 4, 5, 6];
 
   const entries = await prisma.timetableEntry.findMany({
     where: { 
       divisionId: selectedDivId,
-      dayOfWeek: selectedDay
+      ...(selectedDay !== undefined ? { dayOfWeek: selectedDay } : {})
     },
     include: {
       course: { select: { name: true, code: true } },
@@ -68,7 +69,7 @@ export default async function AdminTimetablesPage({
           {divisions.map(div => (
             <Link
               key={div.id}
-              href={`/admin/timetables?div=${div.id}&day=${selectedDay}`}
+              href={`/admin/timetables?div=${div.id}${dayParam ? `&day=${dayParam}` : ""}`}
               className={`rounded-full px-4 py-1.5 text-[14px] font-semibold transition-colors shrink-0 ${
                 selectedDivId === div.id
                   ? "bg-primary text-white"
@@ -80,8 +81,18 @@ export default async function AdminTimetablesPage({
           ))}
         </div>
 
-        {/* Day Selector (No All Week button) */}
+        {/* Day Selector */}
         <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href={`/admin/timetables?div=${selectedDivId}&day=all`}
+            className={`rounded border px-3 py-1.5 text-[13px] font-medium transition-colors ${
+              selectedDay === undefined
+                ? "bg-primary text-white border-primary"
+                : "border-border text-muted hover:text-ink hover:bg-surface"
+            }`}
+          >
+            All Week
+          </Link>
           {DAY_LABELS.map((label, i) => {
             if (i === 0) return null; // Skip Sunday
             return (
@@ -106,7 +117,7 @@ export default async function AdminTimetablesPage({
           entries={calendarEntries} 
           startHour={9} 
           endHour={17} 
-          visibleDays={[selectedDay]} 
+          visibleDays={visibleDays} 
         />
       </div>
     </div>
