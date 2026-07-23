@@ -146,7 +146,7 @@ export function LoginForm() {
             type="button"
             className="text-xs"
             disabled={loading}
-            onClick={() => handleQuickLogin("byp@college.edu")}
+            onClick={() => handleQuickLogin("byp@faculty.college.edu")}
           >
             Faculty
           </Button>
