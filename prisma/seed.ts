@@ -39,11 +39,11 @@ function timeToDate(time: string): Date {
 async function main() {
   console.log("Seeding database...");
 
-  const dbPath = path.join(__dirname, "db.json");
+  const dbPath = path.join(__dirname, "real_data.json");
   const dbData = JSON.parse(fs.readFileSync(dbPath, "utf-8")) as {
-    faculty: FacultySeed[];
+    faculties: FacultySeed[];
     courses: CourseSeed[];
-    timetableEntries: TimetableEntrySeed[];
+    entries: (TimetableEntrySeed & { division: string })[];
   };
 
   const passwordHash = await bcrypt.hash("password123", 10);
@@ -59,10 +59,10 @@ async function main() {
   });
 
   const semester = await prisma.semester.upsert({
-    where: { number_branchId: { number: 6, branchId: branch.id } },
+    where: { number_branchId: { number: 5, branchId: branch.id } }, // BE Third Year (Sem. V)
     update: {},
     create: {
-      number: 6,
+      number: 5,
       branchId: branch.id,
     },
   });
@@ -76,7 +76,7 @@ async function main() {
     },
   });
 
-  await prisma.division.upsert({
+  const div2 = await prisma.division.upsert({
     where: { name_semesterId: { name: "CE 2", semesterId: semester.id } },
     update: { name: "CE 2" },
     create: {
@@ -85,7 +85,7 @@ async function main() {
     },
   });
 
-  await prisma.division.upsert({
+  const div3 = await prisma.division.upsert({
     where: { name_semesterId: { name: "CE 3", semesterId: semester.id } },
     update: { name: "CE 3" },
     create: {
@@ -94,22 +94,32 @@ async function main() {
     },
   });
 
-  const batchA = await prisma.batch.upsert({
-    where: { name_divisionId: { name: "A", divisionId: division.id } },
-    update: {},
-    create: { name: "A", divisionId: division.id },
+  const div4 = await prisma.division.upsert({
+    where: { name_semesterId: { name: "CE 4", semesterId: semester.id } },
+    update: { name: "CE 4" },
+    create: {
+      name: "CE 4",
+      semesterId: semester.id,
+    },
   });
-  const batchB = await prisma.batch.upsert({
-    where: { name_divisionId: { name: "B", divisionId: division.id } },
-    update: {},
-    create: { name: "B", divisionId: division.id },
-  });
-  const batchC = await prisma.batch.upsert({
-    where: { name_divisionId: { name: "C", divisionId: division.id } },
-    update: {},
-    create: { name: "C", divisionId: division.id },
-  });
-  const batchMap = { A: batchA.id, B: batchB.id, C: batchC.id } as Record<string, string>;
+
+  for (const div of [division, div2, div3, div4]) {
+    await prisma.batch.upsert({
+      where: { name_divisionId: { name: "A", divisionId: div.id } },
+      update: {},
+      create: { name: "A", divisionId: div.id },
+    });
+    await prisma.batch.upsert({
+      where: { name_divisionId: { name: "B", divisionId: div.id } },
+      update: {},
+      create: { name: "B", divisionId: div.id },
+    });
+    await prisma.batch.upsert({
+      where: { name_divisionId: { name: "C", divisionId: div.id } },
+      update: {},
+      create: { name: "C", divisionId: div.id },
+    });
+  }
 
   // 2. Create Users
   const admin = await prisma.user.upsert({
@@ -137,7 +147,7 @@ async function main() {
   });
 
   const facultyMap = new Map<string, string>();
-  for (const f of dbData.faculty) {
+  for (const f of dbData.faculties) {
     const user = await prisma.user.upsert({
       where: { email: f.email },
       update: { name: f.name },
@@ -169,28 +179,44 @@ async function main() {
 
   await prisma.timetableEntry.deleteMany();
 
-  for (const entry of dbData.timetableEntries) {
-    const facultyId = facultyMap.get(entry.facultyCode);
-    const courseId = courseMap.get(entry.courseCode);
+  const allDivisions = [division, div2, div3, div4];
+  const divisionIdMap = { "CE 1": division.id, "CE 2": div2.id, "CE 3": div3.id, "CE 4": div4.id } as Record<string, string>;
 
-    if (!facultyId || !courseId) continue;
+  for (const div of allDivisions) {
+    const divBatchA = await prisma.batch.findUnique({ where: { name_divisionId: { name: "A", divisionId: div.id } } });
+    const divBatchB = await prisma.batch.findUnique({ where: { name_divisionId: { name: "B", divisionId: div.id } } });
+    const divBatchC = await prisma.batch.findUnique({ where: { name_divisionId: { name: "C", divisionId: div.id } } });
+    const localBatchMap = { A: divBatchA?.id, B: divBatchB?.id, C: divBatchC?.id } as Record<string, string>;
 
-    const isAll = entry.section === "ALL";
-    const batchId = isAll ? null : batchMap[entry.section];
+    const divEntries = dbData.entries.filter(e => e.division === div.name);
 
-    await prisma.timetableEntry.create({
-      data: {
-        dayOfWeek: entry.dayOfWeek,
-        startTime: timeToDate(entry.startTime),
-        endTime: timeToDate(entry.endTime),
-        courseId,
-        facultyId,
-        room: entry.room,
-        divisionId: division.id,
-        batchId,
-      },
-    });
+    for (const entry of divEntries) {
+      const facultyId = facultyMap.get(entry.facultyCode);
+      const courseId = courseMap.get(entry.courseCode);
+
+      if (!facultyId || !courseId) continue;
+
+      const isAll = entry.section === "ALL";
+      const batchId = isAll ? null : localBatchMap[entry.section];
+
+      await prisma.timetableEntry.create({
+        data: {
+          dayOfWeek: entry.dayOfWeek,
+          startTime: timeToDate(entry.startTime),
+          endTime: timeToDate(entry.endTime),
+          courseId,
+          facultyId,
+          room: entry.room,
+          divisionId: div.id,
+          batchId,
+        },
+      });
+    }
   }
+
+  const studentBatchA = await prisma.batch.findUnique({
+    where: { name_divisionId: { name: "A", divisionId: division.id } }
+  });
 
   const student = await prisma.user.upsert({
     where: { email: "student@college.edu" },
@@ -203,7 +229,7 @@ async function main() {
       branchId: branch.id,
       semesterId: semester.id,
       divisionId: division.id,
-      batchId: batchA.id,
+      batchId: studentBatchA?.id,
     },
   });
 

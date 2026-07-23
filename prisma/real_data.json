@@ -1,0 +1,1446 @@
+{
+  "faculties": [
+    {
+      "code": "NRS",
+      "name": "Dr. Neha Soni",
+      "email": "nrs@faculty.college.edu"
+    },
+    {
+      "code": "JBS",
+      "name": "Prof. Jayna Shah",
+      "email": "jbs@faculty.college.edu"
+    },
+    {
+      "code": "HVC",
+      "name": "Prof. Hetal Chauhan",
+      "email": "hvc@faculty.college.edu"
+    },
+    {
+      "code": "DJP",
+      "name": "Prof. Divya parmar",
+      "email": "djp@faculty.college.edu"
+    },
+    {
+      "code": "MPP",
+      "name": "Dr. Minal patel",
+      "email": "mpp@faculty.college.edu"
+    },
+    {
+      "code": "PJD",
+      "name": "Prof. Prexa Desai",
+      "email": "pjd@faculty.college.edu"
+    },
+    {
+      "code": "MHS",
+      "name": "Prof. Milind shah",
+      "email": "mhs@faculty.college.edu"
+    },
+    {
+      "code": "PAP",
+      "name": "Prof. Priyanka patel",
+      "email": "pap@faculty.college.edu"
+    },
+    {
+      "code": "SMP",
+      "name": "Dr. shrina patel",
+      "email": "smp@faculty.college.edu"
+    },
+    {
+      "code": "JP",
+      "name": "Prof. Jeenal Patel",
+      "email": "jp@faculty.college.edu"
+    },
+    {
+      "code": "MCJ",
+      "name": "Prof. Mital Joshi",
+      "email": "mcj@faculty.college.edu"
+    },
+    {
+      "code": "NSV",
+      "name": "Prof. Nisha Velani",
+      "email": "nsv@faculty.college.edu"
+    },
+    {
+      "code": "PVB",
+      "name": "Prof. Parul Bakaraniya",
+      "email": "pvb@faculty.college.edu"
+    },
+    {
+      "code": "RBP",
+      "name": "Prof. Rashmin Prajapati",
+      "email": "rbp@faculty.college.edu"
+    },
+    {
+      "code": "NBS",
+      "name": "Prof. Nidhi Shah",
+      "email": "nbs@faculty.college.edu"
+    },
+    {
+      "code": "BMJ",
+      "name": "Dr. Barkha Joshi",
+      "email": "bmj@faculty.college.edu"
+    },
+    {
+      "code": "KNU",
+      "name": "Prof. Keyur Upadhyay",
+      "email": "knu@faculty.college.edu"
+    },
+    {
+      "code": "SDB",
+      "name": "Prof. Swati Bopaliya",
+      "email": "sdb@faculty.college.edu"
+    },
+    {
+      "code": "KSS",
+      "name": "Prof. Keyur Suthar",
+      "email": "kss@faculty.college.edu"
+    },
+    {
+      "code": "BYP",
+      "name": "Dr. Brijesh Panchal",
+      "email": "byp@faculty.college.edu"
+    },
+    {
+      "code": "HJB",
+      "name": "Prof. Himani Bhatt",
+      "email": "hjb@faculty.college.edu"
+    },
+    {
+      "code": "AMP",
+      "name": "Prof. Abhishek Patel",
+      "email": "amp@faculty.college.edu"
+    }
+  ],
+  "courses": [
+    {
+      "code": "SS",
+      "name": "System Software"
+    },
+    {
+      "code": "PDS",
+      "name": "Python for Data Science"
+    },
+    {
+      "code": "DM",
+      "name": "Data Mining technique"
+    },
+    {
+      "code": "MI",
+      "name": "Microprocessor and Interfacing"
+    },
+    {
+      "code": "CN",
+      "name": "Computer Networks"
+    },
+    {
+      "code": "PM",
+      "name": "Project Management"
+    },
+    {
+      "code": "WAD",
+      "name": "Web Application And Development"
+    }
+  ],
+  "entries": [
+    {
+      "division": "CE 1",
+      "dayOfWeek": 1,
+      "startTime": "09:35",
+      "endTime": "11:30",
+      "courseCode": "SS",
+      "facultyCode": "NRS",
+      "section": "A",
+      "room": "F1"
+    },
+    {
+      "division": "CE 1",
+      "dayOfWeek": 1,
+      "startTime": "09:35",
+      "endTime": "11:30",
+      "courseCode": "PDS",
+      "facultyCode": "JBS",
+      "section": "B",
+      "room": "F2"
+    },
+    {
+      "division": "CE 1",
+      "dayOfWeek": 1,
+      "startTime": "09:35",
+      "endTime": "11:30",
+      "courseCode": "DM",
+      "facultyCode": "HVC",
+      "section": "C",
+      "room": "F3"
+    },
+    {
+      "division": "CE 1",
+      "dayOfWeek": 1,
+      "startTime": "12:15",
+      "endTime": "14:15",
+      "courseCode": "DM",
+      "facultyCode": "PAP",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 1",
+      "dayOfWeek": 1,
+      "startTime": "14:30",
+      "endTime": "15:30",
+      "courseCode": "MI",
+      "facultyCode": "PJD",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 1",
+      "dayOfWeek": 2,
+      "startTime": "09:35",
+      "endTime": "11:30",
+      "courseCode": "PDS",
+      "facultyCode": "JBS",
+      "section": "A",
+      "room": "F4"
+    },
+    {
+      "division": "CE 1",
+      "dayOfWeek": 2,
+      "startTime": "09:35",
+      "endTime": "11:30",
+      "courseCode": "SS",
+      "facultyCode": "NRS",
+      "section": "B",
+      "room": "S3"
+    },
+    {
+      "division": "CE 1",
+      "dayOfWeek": 2,
+      "startTime": "09:35",
+      "endTime": "11:30",
+      "courseCode": "CN",
+      "facultyCode": "DJP",
+      "section": "C",
+      "room": "F2"
+    },
+    {
+      "division": "CE 1",
+      "dayOfWeek": 2,
+      "startTime": "12:15",
+      "endTime": "14:15",
+      "courseCode": "DM",
+      "facultyCode": "PAP",
+      "section": "A",
+      "room": "F2"
+    },
+    {
+      "division": "CE 1",
+      "dayOfWeek": 2,
+      "startTime": "12:15",
+      "endTime": "14:15",
+      "courseCode": "MI",
+      "facultyCode": "PJD",
+      "section": "B",
+      "room": "F1"
+    },
+    {
+      "division": "CE 1",
+      "dayOfWeek": 2,
+      "startTime": "12:15",
+      "endTime": "14:15",
+      "courseCode": "SS",
+      "facultyCode": "NRS",
+      "section": "C",
+      "room": "S3"
+    },
+    {
+      "division": "CE 1",
+      "dayOfWeek": 2,
+      "startTime": "14:30",
+      "endTime": "15:30",
+      "courseCode": "CN",
+      "facultyCode": "MPP",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 1",
+      "dayOfWeek": 3,
+      "startTime": "09:35",
+      "endTime": "10:30",
+      "courseCode": "SS",
+      "facultyCode": "NRS",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 1",
+      "dayOfWeek": 3,
+      "startTime": "10:30",
+      "endTime": "11:30",
+      "courseCode": "PM",
+      "facultyCode": "MHS",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 1",
+      "dayOfWeek": 3,
+      "startTime": "12:15",
+      "endTime": "14:15",
+      "courseCode": "PDS",
+      "facultyCode": "JBS",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 1",
+      "dayOfWeek": 3,
+      "startTime": "14:30",
+      "endTime": "16:25",
+      "courseCode": "MI",
+      "facultyCode": "PJD",
+      "section": "A",
+      "room": "F6"
+    },
+    {
+      "division": "CE 1",
+      "dayOfWeek": 3,
+      "startTime": "14:30",
+      "endTime": "16:25",
+      "courseCode": "CN",
+      "facultyCode": "MPP",
+      "section": "B",
+      "room": "F4"
+    },
+    {
+      "division": "CE 1",
+      "dayOfWeek": 3,
+      "startTime": "14:30",
+      "endTime": "16:25",
+      "courseCode": "DM",
+      "facultyCode": "JP",
+      "section": "C",
+      "room": "S3"
+    },
+    {
+      "division": "CE 1",
+      "dayOfWeek": 4,
+      "startTime": "09:35",
+      "endTime": "10:30",
+      "courseCode": "PM",
+      "facultyCode": "MHS",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 1",
+      "dayOfWeek": 4,
+      "startTime": "10:30",
+      "endTime": "11:30",
+      "courseCode": "CN",
+      "facultyCode": "MPP",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 1",
+      "dayOfWeek": 4,
+      "startTime": "12:15",
+      "endTime": "13:15",
+      "courseCode": "MI",
+      "facultyCode": "PJD",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 1",
+      "dayOfWeek": 4,
+      "startTime": "13:15",
+      "endTime": "14:15",
+      "courseCode": "DM",
+      "facultyCode": "PAP",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 1",
+      "dayOfWeek": 5,
+      "startTime": "09:35",
+      "endTime": "10:30",
+      "courseCode": "SS",
+      "facultyCode": "NRS",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 1",
+      "dayOfWeek": 5,
+      "startTime": "10:30",
+      "endTime": "11:30",
+      "courseCode": "PDS",
+      "facultyCode": "JBS",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 1",
+      "dayOfWeek": 5,
+      "startTime": "12:15",
+      "endTime": "14:15",
+      "courseCode": "CN",
+      "facultyCode": "MPP",
+      "section": "A",
+      "room": "F1"
+    },
+    {
+      "division": "CE 1",
+      "dayOfWeek": 5,
+      "startTime": "12:15",
+      "endTime": "14:15",
+      "courseCode": "DM",
+      "facultyCode": "JP",
+      "section": "B",
+      "room": "G3/S6"
+    },
+    {
+      "division": "CE 1",
+      "dayOfWeek": 5,
+      "startTime": "12:15",
+      "endTime": "14:15",
+      "courseCode": "MI",
+      "facultyCode": "PJD",
+      "section": "C",
+      "room": "F4"
+    },
+    {
+      "division": "CE 1",
+      "dayOfWeek": 6,
+      "startTime": "09:35",
+      "endTime": "10:30",
+      "courseCode": "MI",
+      "facultyCode": "PJD",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 1",
+      "dayOfWeek": 6,
+      "startTime": "10:30",
+      "endTime": "11:30",
+      "courseCode": "SS",
+      "facultyCode": "NRS",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 1",
+      "dayOfWeek": 6,
+      "startTime": "12:15",
+      "endTime": "14:15",
+      "courseCode": "PDS",
+      "facultyCode": "JBS",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 1",
+      "dayOfWeek": 6,
+      "startTime": "14:30",
+      "endTime": "15:30",
+      "courseCode": "PM",
+      "facultyCode": "MHS",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 2",
+      "dayOfWeek": 1,
+      "startTime": "09:35",
+      "endTime": "10:30",
+      "courseCode": "SS",
+      "facultyCode": "MHS",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 2",
+      "dayOfWeek": 1,
+      "startTime": "10:30",
+      "endTime": "11:30",
+      "courseCode": "DM",
+      "facultyCode": "SMP",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 2",
+      "dayOfWeek": 1,
+      "startTime": "12:15",
+      "endTime": "13:15",
+      "courseCode": "PM",
+      "facultyCode": "JP",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 2",
+      "dayOfWeek": 1,
+      "startTime": "14:30",
+      "endTime": "16:25",
+      "courseCode": "SS",
+      "facultyCode": "MHS",
+      "section": "A",
+      "room": "F1"
+    },
+    {
+      "division": "CE 2",
+      "dayOfWeek": 1,
+      "startTime": "14:30",
+      "endTime": "16:25",
+      "courseCode": "CN",
+      "facultyCode": "MCJ",
+      "section": "B",
+      "room": "F2"
+    },
+    {
+      "division": "CE 2",
+      "dayOfWeek": 1,
+      "startTime": "14:30",
+      "endTime": "16:25",
+      "courseCode": "MI",
+      "facultyCode": "PVB",
+      "section": "C",
+      "room": "F6"
+    },
+    {
+      "division": "CE 2",
+      "dayOfWeek": 2,
+      "startTime": "09:35",
+      "endTime": "10:30",
+      "courseCode": "MI",
+      "facultyCode": "PVB",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 2",
+      "dayOfWeek": 2,
+      "startTime": "10:30",
+      "endTime": "11:30",
+      "courseCode": "CN",
+      "facultyCode": "MCJ",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 2",
+      "dayOfWeek": 2,
+      "startTime": "12:15",
+      "endTime": "13:15",
+      "courseCode": "DM",
+      "facultyCode": "SMP",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 2",
+      "dayOfWeek": 2,
+      "startTime": "13:15",
+      "endTime": "14:15",
+      "courseCode": "SS",
+      "facultyCode": "MHS",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 2",
+      "dayOfWeek": 2,
+      "startTime": "14:30",
+      "endTime": "15:30",
+      "courseCode": "PDS",
+      "facultyCode": "RBP",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 2",
+      "dayOfWeek": 3,
+      "startTime": "09:35",
+      "endTime": "11:30",
+      "courseCode": "MI",
+      "facultyCode": "NSV",
+      "section": "A",
+      "room": "S2"
+    },
+    {
+      "division": "CE 2",
+      "dayOfWeek": 3,
+      "startTime": "09:35",
+      "endTime": "11:30",
+      "courseCode": "DM",
+      "facultyCode": "SMP",
+      "section": "B",
+      "room": "F2"
+    },
+    {
+      "division": "CE 2",
+      "dayOfWeek": 3,
+      "startTime": "09:35",
+      "endTime": "11:30",
+      "courseCode": "PDS",
+      "facultyCode": "HVC",
+      "section": "C",
+      "room": "F4"
+    },
+    {
+      "division": "CE 2",
+      "dayOfWeek": 3,
+      "startTime": "12:15",
+      "endTime": "13:15",
+      "courseCode": "PM",
+      "facultyCode": "JP",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 2",
+      "dayOfWeek": 4,
+      "startTime": "09:35",
+      "endTime": "10:30",
+      "courseCode": "CN",
+      "facultyCode": "MCJ",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 2",
+      "dayOfWeek": 4,
+      "startTime": "10:30",
+      "endTime": "11:30",
+      "courseCode": "MI",
+      "facultyCode": "PVB",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 2",
+      "dayOfWeek": 4,
+      "startTime": "12:15",
+      "endTime": "13:15",
+      "courseCode": "PDS",
+      "facultyCode": "RBP",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 2",
+      "dayOfWeek": 4,
+      "startTime": "13:15",
+      "endTime": "14:15",
+      "courseCode": "PM",
+      "facultyCode": "JP",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 2",
+      "dayOfWeek": 4,
+      "startTime": "14:30",
+      "endTime": "16:25",
+      "courseCode": "DM",
+      "facultyCode": "SMP",
+      "section": "A",
+      "room": "F1"
+    },
+    {
+      "division": "CE 2",
+      "dayOfWeek": 4,
+      "startTime": "14:30",
+      "endTime": "16:25",
+      "courseCode": "PDS",
+      "facultyCode": "HVC",
+      "section": "B",
+      "room": "S3"
+    },
+    {
+      "division": "CE 2",
+      "dayOfWeek": 4,
+      "startTime": "14:30",
+      "endTime": "16:25",
+      "courseCode": "DM",
+      "facultyCode": "BMJ",
+      "section": "C",
+      "room": "S2"
+    },
+    {
+      "division": "CE 2",
+      "dayOfWeek": 5,
+      "startTime": "09:35",
+      "endTime": "10:30",
+      "courseCode": "CN",
+      "facultyCode": "MCJ",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 2",
+      "dayOfWeek": 5,
+      "startTime": "10:30",
+      "endTime": "11:30",
+      "courseCode": "MI",
+      "facultyCode": "PVB",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 2",
+      "dayOfWeek": 5,
+      "startTime": "12:15",
+      "endTime": "13:15",
+      "courseCode": "SS",
+      "facultyCode": "MHS",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 2",
+      "dayOfWeek": 5,
+      "startTime": "13:15",
+      "endTime": "14:15",
+      "courseCode": "DM",
+      "facultyCode": "SMP",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 2",
+      "dayOfWeek": 5,
+      "startTime": "14:30",
+      "endTime": "16:25",
+      "courseCode": "PDS",
+      "facultyCode": "RBP",
+      "section": "A",
+      "room": "F3"
+    },
+    {
+      "division": "CE 2",
+      "dayOfWeek": 5,
+      "startTime": "14:30",
+      "endTime": "16:25",
+      "courseCode": "SS",
+      "facultyCode": "MHS",
+      "section": "B",
+      "room": "F4"
+    },
+    {
+      "division": "CE 2",
+      "dayOfWeek": 5,
+      "startTime": "14:30",
+      "endTime": "16:25",
+      "courseCode": "CN",
+      "facultyCode": "MCJ",
+      "section": "C",
+      "room": "F1"
+    },
+    {
+      "division": "CE 2",
+      "dayOfWeek": 6,
+      "startTime": "09:35",
+      "endTime": "11:30",
+      "courseCode": "CN",
+      "facultyCode": "MCJ",
+      "section": "A",
+      "room": "F1"
+    },
+    {
+      "division": "CE 2",
+      "dayOfWeek": 6,
+      "startTime": "09:35",
+      "endTime": "11:30",
+      "courseCode": "MI",
+      "facultyCode": "PVB",
+      "section": "B",
+      "room": "G3/S6"
+    },
+    {
+      "division": "CE 2",
+      "dayOfWeek": 6,
+      "startTime": "09:35",
+      "endTime": "11:30",
+      "courseCode": "SS",
+      "facultyCode": "MHS",
+      "section": "C",
+      "room": "F2"
+    },
+    {
+      "division": "CE 2",
+      "dayOfWeek": 6,
+      "startTime": "12:15",
+      "endTime": "13:15",
+      "courseCode": "PDS",
+      "facultyCode": "RBP",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 3",
+      "dayOfWeek": 1,
+      "startTime": "09:35",
+      "endTime": "10:30",
+      "courseCode": "PDS",
+      "facultyCode": "KSS",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 3",
+      "dayOfWeek": 1,
+      "startTime": "10:30",
+      "endTime": "11:30",
+      "courseCode": "WAD",
+      "facultyCode": "NBS",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 3",
+      "dayOfWeek": 1,
+      "startTime": "12:15",
+      "endTime": "13:15",
+      "courseCode": "PM",
+      "facultyCode": "PJD",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 3",
+      "dayOfWeek": 1,
+      "startTime": "13:15",
+      "endTime": "14:15",
+      "courseCode": "MI",
+      "facultyCode": "KNU",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 3",
+      "dayOfWeek": 2,
+      "startTime": "09:35",
+      "endTime": "11:30",
+      "courseCode": "DM",
+      "facultyCode": "BMJ",
+      "section": "A",
+      "room": "S2"
+    },
+    {
+      "division": "CE 3",
+      "dayOfWeek": 2,
+      "startTime": "09:35",
+      "endTime": "11:30",
+      "courseCode": "CN",
+      "facultyCode": "SDB",
+      "section": "B",
+      "room": "F1"
+    },
+    {
+      "division": "CE 3",
+      "dayOfWeek": 2,
+      "startTime": "09:35",
+      "endTime": "11:30",
+      "courseCode": "WAD",
+      "facultyCode": "NBS",
+      "section": "C",
+      "room": "F5"
+    },
+    {
+      "division": "CE 3",
+      "dayOfWeek": 2,
+      "startTime": "12:15",
+      "endTime": "13:15",
+      "courseCode": "PDS",
+      "facultyCode": "KSS",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 3",
+      "dayOfWeek": 2,
+      "startTime": "13:15",
+      "endTime": "14:15",
+      "courseCode": "MI",
+      "facultyCode": "KNU",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 3",
+      "dayOfWeek": 2,
+      "startTime": "14:30",
+      "endTime": "15:30",
+      "courseCode": "CN",
+      "facultyCode": "SDB",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 3",
+      "dayOfWeek": 3,
+      "startTime": "09:35",
+      "endTime": "10:30",
+      "courseCode": "PDS",
+      "facultyCode": "KSS",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 3",
+      "dayOfWeek": 3,
+      "startTime": "10:30",
+      "endTime": "11:30",
+      "courseCode": "CN",
+      "facultyCode": "SDB",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 3",
+      "dayOfWeek": 3,
+      "startTime": "12:15",
+      "endTime": "14:15",
+      "courseCode": "MI",
+      "facultyCode": "KNU",
+      "section": "A",
+      "room": "F5"
+    },
+    {
+      "division": "CE 3",
+      "dayOfWeek": 3,
+      "startTime": "12:15",
+      "endTime": "14:15",
+      "courseCode": "DM",
+      "facultyCode": "BMJ",
+      "section": "B",
+      "room": "S4"
+    },
+    {
+      "division": "CE 3",
+      "dayOfWeek": 3,
+      "startTime": "12:15",
+      "endTime": "14:15",
+      "courseCode": "SS",
+      "facultyCode": "HVC",
+      "section": "C",
+      "room": "S3"
+    },
+    {
+      "division": "CE 3",
+      "dayOfWeek": 3,
+      "startTime": "14:30",
+      "endTime": "16:25",
+      "courseCode": "CN",
+      "facultyCode": "SDB",
+      "section": "A",
+      "room": "F1"
+    },
+    {
+      "division": "CE 3",
+      "dayOfWeek": 3,
+      "startTime": "14:30",
+      "endTime": "16:25",
+      "courseCode": "PDS",
+      "facultyCode": "KSS",
+      "section": "B",
+      "room": "F5"
+    },
+    {
+      "division": "CE 3",
+      "dayOfWeek": 3,
+      "startTime": "14:30",
+      "endTime": "16:25",
+      "courseCode": "MI",
+      "facultyCode": "NSV",
+      "section": "C",
+      "room": "F3"
+    },
+    {
+      "division": "CE 3",
+      "dayOfWeek": 4,
+      "startTime": "09:35",
+      "endTime": "10:30",
+      "courseCode": "MI",
+      "facultyCode": "KNU",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 3",
+      "dayOfWeek": 4,
+      "startTime": "10:30",
+      "endTime": "11:30",
+      "courseCode": "WAD",
+      "facultyCode": "NBS",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 3",
+      "dayOfWeek": 4,
+      "startTime": "12:15",
+      "endTime": "13:15",
+      "courseCode": "SS",
+      "facultyCode": "HVC",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 3",
+      "dayOfWeek": 4,
+      "startTime": "13:15",
+      "endTime": "14:15",
+      "courseCode": "PM",
+      "facultyCode": "PJD",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 3",
+      "dayOfWeek": 5,
+      "startTime": "09:35",
+      "endTime": "10:30",
+      "courseCode": "WAD",
+      "facultyCode": "NBS",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 3",
+      "dayOfWeek": 5,
+      "startTime": "10:30",
+      "endTime": "11:30",
+      "courseCode": "SS",
+      "facultyCode": "HVC",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 3",
+      "dayOfWeek": 5,
+      "startTime": "12:15",
+      "endTime": "14:15",
+      "courseCode": "SS",
+      "facultyCode": "HVC",
+      "section": "A",
+      "room": "F2"
+    },
+    {
+      "division": "CE 3",
+      "dayOfWeek": 5,
+      "startTime": "12:15",
+      "endTime": "14:15",
+      "courseCode": "MI",
+      "facultyCode": "KNU",
+      "section": "B",
+      "room": "S4"
+    },
+    {
+      "division": "CE 3",
+      "dayOfWeek": 5,
+      "startTime": "12:15",
+      "endTime": "14:15",
+      "courseCode": "PDS",
+      "facultyCode": "KSS",
+      "section": "C",
+      "room": "F5"
+    },
+    {
+      "division": "CE 3",
+      "dayOfWeek": 5,
+      "startTime": "14:30",
+      "endTime": "16:25",
+      "courseCode": "PDS",
+      "facultyCode": "KSS",
+      "section": "A",
+      "room": "S4"
+    },
+    {
+      "division": "CE 3",
+      "dayOfWeek": 5,
+      "startTime": "14:30",
+      "endTime": "16:25",
+      "courseCode": "SS",
+      "facultyCode": "HVC",
+      "section": "B",
+      "room": "S3"
+    },
+    {
+      "division": "CE 3",
+      "dayOfWeek": 5,
+      "startTime": "14:30",
+      "endTime": "16:25",
+      "courseCode": "CN",
+      "facultyCode": "SDB",
+      "section": "C",
+      "room": "F6"
+    },
+    {
+      "division": "CE 3",
+      "dayOfWeek": 6,
+      "startTime": "09:35",
+      "endTime": "10:30",
+      "courseCode": "SS",
+      "facultyCode": "HVC",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 3",
+      "dayOfWeek": 6,
+      "startTime": "10:30",
+      "endTime": "11:30",
+      "courseCode": "CN",
+      "facultyCode": "SDB",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 3",
+      "dayOfWeek": 6,
+      "startTime": "12:15",
+      "endTime": "13:15",
+      "courseCode": "PM",
+      "facultyCode": "PJD",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 4",
+      "dayOfWeek": 1,
+      "startTime": "09:35",
+      "endTime": "10:30",
+      "courseCode": "PM",
+      "facultyCode": "BYP",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 4",
+      "dayOfWeek": 1,
+      "startTime": "10:30",
+      "endTime": "11:30",
+      "courseCode": "WAD",
+      "facultyCode": "NBS",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 4",
+      "dayOfWeek": 1,
+      "startTime": "12:15",
+      "endTime": "13:15",
+      "courseCode": "CN",
+      "facultyCode": "DJP",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 4",
+      "dayOfWeek": 1,
+      "startTime": "13:15",
+      "endTime": "14:15",
+      "courseCode": "MI",
+      "facultyCode": "NSV",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 4",
+      "dayOfWeek": 1,
+      "startTime": "14:30",
+      "endTime": "15:30",
+      "courseCode": "SS",
+      "facultyCode": "HJB",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 4",
+      "dayOfWeek": 2,
+      "startTime": "09:35",
+      "endTime": "10:30",
+      "courseCode": "MI",
+      "facultyCode": "NSV",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 4",
+      "dayOfWeek": 2,
+      "startTime": "10:30",
+      "endTime": "11:30",
+      "courseCode": "SS",
+      "facultyCode": "HJB",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 4",
+      "dayOfWeek": 2,
+      "startTime": "12:15",
+      "endTime": "14:15",
+      "courseCode": "CN",
+      "facultyCode": "DJP",
+      "section": "A",
+      "room": "F4"
+    },
+    {
+      "division": "CE 4",
+      "dayOfWeek": 2,
+      "startTime": "12:15",
+      "endTime": "14:15",
+      "courseCode": "WAD",
+      "facultyCode": "NBS",
+      "section": "B",
+      "room": "F5"
+    },
+    {
+      "division": "CE 4",
+      "dayOfWeek": 2,
+      "startTime": "12:15",
+      "endTime": "14:15",
+      "courseCode": "PDS",
+      "facultyCode": "AMP",
+      "section": "C",
+      "room": "F3"
+    },
+    {
+      "division": "CE 4",
+      "dayOfWeek": 2,
+      "startTime": "14:30",
+      "endTime": "16:25",
+      "courseCode": "SS",
+      "facultyCode": "MHS",
+      "section": "A",
+      "room": "F6"
+    },
+    {
+      "division": "CE 4",
+      "dayOfWeek": 2,
+      "startTime": "14:30",
+      "endTime": "16:25",
+      "courseCode": "SS",
+      "facultyCode": "HJB",
+      "section": "B",
+      "room": "S4"
+    },
+    {
+      "division": "CE 4",
+      "dayOfWeek": 2,
+      "startTime": "14:30",
+      "endTime": "16:25",
+      "courseCode": "MI",
+      "facultyCode": "KNU",
+      "section": "C",
+      "room": "F1"
+    },
+    {
+      "division": "CE 4",
+      "dayOfWeek": 3,
+      "startTime": "09:35",
+      "endTime": "10:30",
+      "courseCode": "PDS",
+      "facultyCode": "AMP",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 4",
+      "dayOfWeek": 3,
+      "startTime": "10:30",
+      "endTime": "11:30",
+      "courseCode": "SS",
+      "facultyCode": "HJB",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 4",
+      "dayOfWeek": 3,
+      "startTime": "12:15",
+      "endTime": "14:15",
+      "courseCode": "PDS",
+      "facultyCode": "AMP",
+      "section": "A",
+      "room": "F4"
+    },
+    {
+      "division": "CE 4",
+      "dayOfWeek": 3,
+      "startTime": "12:15",
+      "endTime": "14:15",
+      "courseCode": "CN",
+      "facultyCode": "DJP",
+      "section": "B",
+      "room": "F1"
+    },
+    {
+      "division": "CE 4",
+      "dayOfWeek": 3,
+      "startTime": "12:15",
+      "endTime": "14:15",
+      "courseCode": "SS",
+      "facultyCode": "HJB",
+      "section": "C",
+      "room": "S2"
+    },
+    {
+      "division": "CE 4",
+      "dayOfWeek": 3,
+      "startTime": "14:30",
+      "endTime": "15:30",
+      "courseCode": "PM",
+      "facultyCode": "BYP",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 4",
+      "dayOfWeek": 4,
+      "startTime": "09:35",
+      "endTime": "10:30",
+      "courseCode": "MI",
+      "facultyCode": "NSV",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 4",
+      "dayOfWeek": 4,
+      "startTime": "10:30",
+      "endTime": "11:30",
+      "courseCode": "WAD",
+      "facultyCode": "NBS",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 4",
+      "dayOfWeek": 4,
+      "startTime": "12:15",
+      "endTime": "13:15",
+      "courseCode": "CN",
+      "facultyCode": "DJP",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 4",
+      "dayOfWeek": 5,
+      "startTime": "09:35",
+      "endTime": "10:30",
+      "courseCode": "WAD",
+      "facultyCode": "NBS",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 4",
+      "dayOfWeek": 5,
+      "startTime": "10:30",
+      "endTime": "11:30",
+      "courseCode": "PDS",
+      "facultyCode": "AMP",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 4",
+      "dayOfWeek": 5,
+      "startTime": "12:15",
+      "endTime": "13:15",
+      "courseCode": "CN",
+      "facultyCode": "DJP",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 4",
+      "dayOfWeek": 5,
+      "startTime": "14:30",
+      "endTime": "16:25",
+      "courseCode": "WAD",
+      "facultyCode": "NBS",
+      "section": "A",
+      "room": "S2"
+    },
+    {
+      "division": "CE 4",
+      "dayOfWeek": 5,
+      "startTime": "14:30",
+      "endTime": "16:25",
+      "courseCode": "PDS",
+      "facultyCode": "AMP",
+      "section": "B",
+      "room": "F5"
+    },
+    {
+      "division": "CE 4",
+      "dayOfWeek": 5,
+      "startTime": "14:30",
+      "endTime": "16:25",
+      "courseCode": "CN",
+      "facultyCode": "DJP",
+      "section": "C",
+      "room": "F2"
+    },
+    {
+      "division": "CE 4",
+      "dayOfWeek": 6,
+      "startTime": "09:35",
+      "endTime": "10:30",
+      "courseCode": "PM",
+      "facultyCode": "BYP",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 4",
+      "dayOfWeek": 6,
+      "startTime": "10:30",
+      "endTime": "11:30",
+      "courseCode": "PDS",
+      "facultyCode": "AMP",
+      "section": "ALL",
+      "room": "TBD"
+    },
+    {
+      "division": "CE 4",
+      "dayOfWeek": 6,
+      "startTime": "12:15",
+      "endTime": "14:15",
+      "courseCode": "MI",
+      "facultyCode": "PVB",
+      "section": "A",
+      "room": "S4"
+    },
+    {
+      "division": "CE 4",
+      "dayOfWeek": 6,
+      "startTime": "12:15",
+      "endTime": "14:15",
+      "courseCode": "MI",
+      "facultyCode": "NSV",
+      "section": "B",
+      "room": "F6"
+    },
+    {
+      "division": "CE 4",
+      "dayOfWeek": 6,
+      "startTime": "12:15",
+      "endTime": "14:15",
+      "courseCode": "WAD",
+      "facultyCode": "NBS",
+      "section": "C",
+      "room": "F5"
+    }
+  ]
+}

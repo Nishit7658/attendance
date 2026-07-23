@@ -25,11 +25,18 @@ const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", 
 const HOUR_HEIGHT = 80 // pixels per hour
 
 function getMinutesFromMidnight(date: Date) {
-  return date.getHours() * 60 + date.getMinutes()
+  const d = new Date(date)
+  return d.getUTCHours() * 60 + d.getUTCMinutes()
 }
 
 function formatTime(date: Date) {
-  return date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })
+  const d = new Date(date)
+  const hours = d.getUTCHours()
+  const minutes = d.getUTCMinutes()
+  const ampm = hours >= 12 ? "PM" : "AM"
+  const h12 = hours % 12 || 12
+  const mStr = minutes < 10 ? `0${minutes}` : minutes
+  return `${h12}:${mStr} ${ampm}`
 }
 
 export function TimetableCalendar({
