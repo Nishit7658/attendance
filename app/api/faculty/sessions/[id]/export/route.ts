@@ -42,7 +42,7 @@ export async function GET(
   const studentIds = dbSession.attendanceRecords.map((r) => r.studentId);
   const students = await prisma.user.findMany({
     where: { id: { in: studentIds } },
-    select: { id: true, name: true, email: true },
+    select: { id: true, name: true, email: true, enrollmentNo: true },
   });
   const studentMap = new Map(students.map((s) => [s.id, s]));
 
@@ -51,6 +51,7 @@ export async function GET(
   const rows = dbSession.attendanceRecords.map((record) => {
     const stu = studentMap.get(record.studentId);
     return [
+      escapeCsv(stu?.enrollmentNo ?? "N/A"),
       escapeCsv(stu?.name ?? "Unknown Student"),
       escapeCsv(stu?.email ?? record.studentId),
       record.status,
@@ -58,7 +59,7 @@ export async function GET(
     ];
   });
 
-  const header = ["Student Name", "Roll No", "Status", "Marked At"];
+  const header = ["Enrollment No", "Student Name", "Email", "Status", "Marked At"];
   const bom = "\uFEFF";
   const csv = bom + [header.join(","), ...rows.map((r) => r.join(","))].join("\r\n");
 

@@ -214,16 +214,59 @@ async function main() {
     }
   }
 
-  const studentBatchA = await prisma.batch.findUnique({
-    where: { name_divisionId: { name: "A", divisionId: division.id } }
-  });
+  const studentBatchA = await prisma.batch.findUnique({ where: { name_divisionId: { name: "A", divisionId: division.id } } });
+  const studentBatchB = await prisma.batch.findUnique({ where: { name_divisionId: { name: "B", divisionId: division.id } } });
+  const studentBatchC = await prisma.batch.findUnique({ where: { name_divisionId: { name: "C", divisionId: division.id } } });
+  const batchList = [studentBatchA, studentBatchB, studentBatchC];
 
-  const student = await prisma.user.upsert({
+  const studentsPath = path.join(__dirname, "students.json");
+  const studentsData = JSON.parse(fs.readFileSync(studentsPath, "utf-8")) as {
+    sNo: number;
+    name: string;
+    enrollmentNo: string;
+  }[];
+
+  await prisma.attendanceRecord.deleteMany();
+  await prisma.session.deleteMany();
+
+  for (let i = 0; i < studentsData.length; i++) {
+    const s = studentsData[i];
+    const email = `${s.enrollmentNo}@student.college.edu`;
+    const batch = batchList[i % 3];
+
+    await prisma.user.upsert({
+      where: { email },
+      update: {
+        name: s.name,
+        enrollmentNo: s.enrollmentNo,
+        divisionId: division.id,
+        batchId: batch?.id,
+      },
+      create: {
+        email,
+        enrollmentNo: s.enrollmentNo,
+        name: s.name,
+        role: Role.STUDENT,
+        passwordHash,
+        branchId: branch.id,
+        semesterId: semester.id,
+        divisionId: division.id,
+        batchId: batch?.id,
+      },
+    });
+  }
+
+  // Also create demo student@college.edu account pointing to Nishit Panchal
+  await prisma.user.upsert({
     where: { email: "student@college.edu" },
-    update: {},
+    update: {
+      name: "Panchal Nishit Chirayubhai",
+      divisionId: division.id,
+      batchId: studentBatchA?.id,
+    },
     create: {
       email: "student@college.edu",
-      name: "Student User",
+      name: "Panchal Nishit Chirayubhai",
       role: Role.STUDENT,
       passwordHash,
       branchId: branch.id,
@@ -232,6 +275,44 @@ async function main() {
       batchId: studentBatchA?.id,
     },
   });
+
+  // Auto-generate Sessions for Today based on Timetable Entries
+  const today = new Date();
+  const currentDayOfWeek = today.getDay() === 0 ? 1 : today.getDay(); // Default Sunday to Monday
+
+  const todayEntries = await prisma.timetableEntry.findMany({
+    where: { dayOfWeek: currentDayOfWeek },
+    include: { course: true, faculty: true }
+  });
+
+  console.log(`Creating ${todayEntries.length} sessions for today (Day ${currentDayOfWeek})...`);
+
+  for (const entry of todayEntries) {
+    const sessionDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    
+    // Construct start & end times for today
+    const stHours = entry.startTime.getUTCHours();
+    const stMins = entry.startTime.getUTCMinutes();
+    const etHours = entry.endTime.getUTCHours();
+    const etMins = entry.endTime.getUTCMinutes();
+
+    const startTime = new Date(today.getFullYear(), today.getMonth(), today.getDate(), stHours, stMins);
+    const endTime = new Date(today.getFullYear(), today.getMonth(), today.getDate(), etHours, etMins);
+
+    await prisma.session.create({
+      data: {
+        timetableEntryId: entry.id,
+        courseId: entry.courseId,
+        facultyId: entry.facultyId,
+        date: sessionDate,
+        startTime,
+        endTime,
+        status: "ACTIVE",
+        qrToken: `QR-${entry.id}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        isAdHoc: false,
+      },
+    });
+  }
 
   // Seed default system config
   const defaultConfig = [

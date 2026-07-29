@@ -84,6 +84,7 @@ model Batch {
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
+  enrollmentNo String?  @unique
   name         String
   role         Role
   passwordHash String

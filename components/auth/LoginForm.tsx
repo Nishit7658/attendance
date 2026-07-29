@@ -114,12 +114,12 @@ export function LoginForm() {
         </Button>
       </form>
 
-      {/* Quick Login Shortcuts for Testing */}
+      {/* Quick Login Shortcuts for Testing & Faculty Presentation */}
       <div className="mt-8 pt-6 border-t border-border">
         <p className="text-[11px] font-medium text-muted uppercase tracking-wider mb-3 text-center">
-          Quick Test Login
+          Quick Demo Sign-In
         </p>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-2 mb-3">
           <Button
             variant="secondary"
             size="sm"
@@ -146,9 +146,9 @@ export function LoginForm() {
             type="button"
             className="text-xs"
             disabled={loading}
-            onClick={() => handleQuickLogin("byp@faculty.college.edu")}
+            onClick={() => handleQuickLogin("student@college.edu")}
           >
-            Faculty
+            Student (Nishit)
           </Button>
           <Button
             variant="secondary"
@@ -156,10 +156,46 @@ export function LoginForm() {
             type="button"
             className="text-xs"
             disabled={loading}
-            onClick={() => handleQuickLogin("student@college.edu")}
+            onClick={() => handleQuickLogin("byp@faculty.college.edu")}
           >
-            Student
+            Faculty (BYP)
           </Button>
+        </div>
+
+        {/* Faculty Select Dropdown */}
+        <div className="mt-3">
+          <label className="block text-[11px] font-medium text-muted uppercase tracking-wider mb-1 text-center">
+            Sign In as Specific Faculty
+          </label>
+          <select
+            className="w-full bg-bg border border-border rounded px-2.5 py-1.5 text-xs text-ink focus:outline-none focus:border-primary"
+            disabled={loading}
+            onChange={(e) => {
+              if (e.target.value) {
+                handleQuickLogin(e.target.value);
+              }
+            }}
+            defaultValue=""
+          >
+            <option value="" disabled>-- Select Faculty --</option>
+            <option value="byp@faculty.college.edu">Dr. Brijesh Panchal (BYP)</option>
+            <option value="nrs@faculty.college.edu">Dr. Neha Soni (NRS)</option>
+            <option value="jbs@faculty.college.edu">Prof. Jayna Shah (JBS)</option>
+            <option value="hvc@faculty.college.edu">Prof. Hetal Chauhan (HVC)</option>
+            <option value="djp@faculty.college.edu">Prof. Divya Parmar (DJP)</option>
+            <option value="mpp@faculty.college.edu">Dr. Minal Patel (MPP)</option>
+            <option value="pjd@faculty.college.edu">Prof. Prexa Desai (PJD)</option>
+            <option value="mhs@faculty.college.edu">Prof. Milind Shah (MHS)</option>
+            <option value="amp@faculty.college.edu">Prof. Abhishek Patel (AMP)</option>
+            <option value="smp@faculty.college.edu">Dr. Shrina Patel (SMP)</option>
+            <option value="mcj@faculty.college.edu">Prof. Mital Joshi (MCJ)</option>
+            <option value="nsv@faculty.college.edu">Prof. Nisha Velani (NSV)</option>
+            <option value="pvb@faculty.college.edu">Prof. Parul Bakaraniya (PVB)</option>
+            <option value="nbs@faculty.college.edu">Prof. Nidhi Shah (NBS)</option>
+            <option value="knu@faculty.college.edu">Prof. Keyur Upadhyay (KNU)</option>
+            <option value="sdb@faculty.college.edu">Prof. Swati Bopaliya (SDB)</option>
+            <option value="kss@faculty.college.edu">Prof. Keyur Suthar (KSS)</option>
+          </select>
         </div>
       </div>
     </div>
