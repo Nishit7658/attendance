@@ -6,10 +6,10 @@ import { Badge } from "@/components/ui/Badge";
 
 export default async function StudentDashboardPage() {
   const session = await auth();
-  if (!session?.user?.email) redirect("/login");
+  if (!session?.user?.id) redirect("/login");
 
   const currentUser = await prisma.user.findUnique({
-    where: { email: session.user.email },
+    where: { id: session.user.id },
   });
 
   if (!currentUser || currentUser.role !== "STUDENT") redirect("/faculty/dashboard");
@@ -161,3 +161,4 @@ export default async function StudentDashboardPage() {
     </div>
   );
 }
+

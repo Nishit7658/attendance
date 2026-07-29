@@ -8,10 +8,10 @@ import { CourseActions } from "./actions";
 
 export default async function AdminCoursesPage() {
   const session = await auth();
-  if (!session?.user?.email) redirect("/login");
+  if (!session?.user?.id) redirect("/login");
 
   const currentUser = await prisma.user.findUnique({
-    where: { email: session.user.email },
+    where: { id: session.user.id },
   });
 
   if (currentUser?.role !== "ADMIN") redirect("/faculty/dashboard");
@@ -65,3 +65,4 @@ export default async function AdminCoursesPage() {
     </div>
   );
 }
+

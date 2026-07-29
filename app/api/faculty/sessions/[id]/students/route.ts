@@ -8,7 +8,7 @@ export async function GET(
 ) {
   try {
     const authSession = await auth();
-    if (!authSession?.user?.email) {
+    if (!authsession?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

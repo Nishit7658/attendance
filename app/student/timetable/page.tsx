@@ -12,10 +12,10 @@ export default async function StudentTimetablePage({
   searchParams: { day?: string; div?: string };
 }) {
   const session = await auth();
-  if (!session?.user?.email) redirect("/login");
+  if (!session?.user?.id) redirect("/login");
 
   const currentUser = await prisma.user.findUnique({
-    where: { email: session.user.email },
+    where: { id: session.user.id },
   });
 
   if (!currentUser || currentUser.role !== "STUDENT") redirect("/faculty/dashboard");
@@ -132,3 +132,4 @@ export default async function StudentTimetablePage({
     </div>
   );
 }
+

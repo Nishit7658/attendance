@@ -7,7 +7,7 @@ export async function GET(
   { params }: { params: { id: string } },
 ) {
   const userSession = await auth();
-  if (!userSession?.user?.email) {
+  if (!usersession?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

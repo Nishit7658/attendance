@@ -4,9 +4,9 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   const session = await auth();
-  if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const currentUser = await prisma.user.findUnique({ where: { email: session.user.email } });
+  const currentUser = await prisma.user.findUnique({ where: { id: session.user.id } });
   if (currentUser?.role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const entry = await prisma.timetableEntry.findUnique({
@@ -24,9 +24,9 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
 
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
   const session = await auth();
-  if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const currentUser = await prisma.user.findUnique({ where: { email: session.user.email } });
+  const currentUser = await prisma.user.findUnique({ where: { id: session.user.id } });
   if (currentUser?.role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   try {
@@ -106,9 +106,9 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 
 export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
   const session = await auth();
-  if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const currentUser = await prisma.user.findUnique({ where: { email: session.user.email } });
+  const currentUser = await prisma.user.findUnique({ where: { id: session.user.id } });
   if (currentUser?.role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   try {

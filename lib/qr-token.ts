@@ -9,15 +9,17 @@ export async function generateQrToken(sessionId: string): Promise<string> {
   const payload = { sessionId, ts: Date.now() };
   return new SignJWT(payload)
     .setProtectedHeader({ alg: "HS256" })
-    .setExpirationTime("30s")
+    .setExpirationTime("120s")
     .sign(getSecret());
 }
 
 export async function verifyQrToken(token: string) {
-  const { payload } = await jwtVerify(token, getSecret());
+  const { payload } = await jwtVerify(token, getSecret(), {
+    clockTolerance: 30, // allow 30s clock skew
+  });
   return payload as { sessionId: string; ts: number };
 }
 
 export function getQrExpiry(): number {
-  return Date.now() + 30000;
+  return Date.now() + 120000;
 }

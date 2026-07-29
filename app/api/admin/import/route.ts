@@ -32,11 +32,11 @@ export async function POST(request: NextRequest) {
   try {
     // Auth check
     const authSession = await auth();
-    if (!authSession?.user?.email) {
+    if (!authsession?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const currentUser = await prisma.user.findUnique({
-      where: { email: authSession.user.email },
+      where: { id: authSession.user.id },
     });
     if (currentUser?.role !== "ADMIN") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
