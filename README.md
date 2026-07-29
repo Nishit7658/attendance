@@ -2,6 +2,8 @@
 
 A Premium College Attendance Management System featuring digital attendance for faculty, students, HODs, and administrators across multiple role-based portals. Built with a modern tech stack, dark-mode-first premium UI, and secure rotating QR code technology.
 
+This repository is currently being prepared for review and collaboration.
+
 ## Key Features
 
 - **Role-Based Portals**: Dedicated UI and workflows for **Admins**, **HODs**, **Faculty**, and **Students**.
