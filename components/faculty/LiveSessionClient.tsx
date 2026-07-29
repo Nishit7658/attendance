@@ -138,19 +138,25 @@ export default function LiveSessionClient({
   useEffect(() => {
     mountedRef.current = true;
     connect();
-    
+
     // Smooth timer updates
     const timer = setInterval(() => {
       if (mountedRef.current) setNow(Date.now());
     }, 100);
 
+    // Poll roster every 5 seconds for updates (SSE handles instant scan updates too)
+    const rosterPoller = setInterval(() => {
+      if (mountedRef.current) fetchStudents();
+    }, 5000);
+
     return () => {
       mountedRef.current = false;
       clearInterval(timer);
+      clearInterval(rosterPoller);
       if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
       eventSourceRef.current?.close();
     };
-  }, [connect]);
+  }, [connect, fetchStudents]);
 
   const handleEndSession = useCallback(async () => {
     setEnding(true);
@@ -360,7 +366,7 @@ export default function LiveSessionClient({
                             {student.name}
                           </p>
                           <p className="text-xs text-slate-400 truncate">
-                            {student.rollNo}
+                            {student.rollNo /* enrollmentNo or email fallback */}
                           </p>
                         </div>
                         {isMarked ? (

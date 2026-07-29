@@ -8,12 +8,12 @@ export async function GET(
 ) {
   try {
     const authSession = await auth();
-    if (!authSession?.user?.id) {
+    if (!authSession?.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const user = await prisma.user.findUnique({
-      where: { id: authSession.user.id },
+      where: { email: authSession.user.email },
       select: { id: true, role: true },
     });
     if (!user || !["FACULTY", "HOD", "ADMIN"].includes(user.role)) {
@@ -29,15 +29,16 @@ export async function GET(
       return NextResponse.json({ error: "Session not found" }, { status: 404 });
     }
 
-    if (session.facultyId !== user.id) {
+    // HOD and ADMIN can see any session; Faculty can only see their own
+    if (user.role === "FACULTY" && session.facultyId !== user.id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Fetch all students and their attendance records for this session
+    // Fetch all students enrolled in the same division/course, with attendance records
     const [students, records] = await Promise.all([
       prisma.user.findMany({
         where: { role: "STUDENT" },
-        select: { id: true, name: true, email: true },
+        select: { id: true, name: true, enrollmentNo: true, email: true },
         orderBy: { name: "asc" },
       }),
       prisma.attendanceRecord.findMany({
@@ -51,7 +52,8 @@ export async function GET(
     const studentsWithStatus = students.map((s) => ({
       id: s.id,
       name: s.name,
-      rollNo: s.email,
+      // Show enrollment number as the roll number, fall back to email
+      rollNo: s.enrollmentNo ?? s.email,
       status: recordMap.get(s.id) ?? null,
     }));
 

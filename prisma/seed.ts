@@ -46,7 +46,8 @@ async function main() {
     entries: (TimetableEntrySeed & { division: string })[];
   };
 
-  const passwordHash = await bcrypt.hash("password123", 10);
+  // Admin & HOD use standard password
+  const adminPasswordHash = await bcrypt.hash("password123", 10);
 
   // 1. Create Organizational Hierarchy
   const branch = await prisma.branch.upsert({
@@ -59,7 +60,7 @@ async function main() {
   });
 
   const semester = await prisma.semester.upsert({
-    where: { number_branchId: { number: 5, branchId: branch.id } }, // BE Third Year (Sem. V)
+    where: { number_branchId: { number: 5, branchId: branch.id } },
     update: {},
     create: {
       number: 5,
@@ -70,40 +71,30 @@ async function main() {
   const division = await prisma.division.upsert({
     where: { name_semesterId: { name: "CE 1", semesterId: semester.id } },
     update: { name: "CE 1" },
-    create: {
-      name: "CE 1",
-      semesterId: semester.id,
-    },
+    create: { name: "CE 1", semesterId: semester.id },
   });
 
   const div2 = await prisma.division.upsert({
     where: { name_semesterId: { name: "CE 2", semesterId: semester.id } },
     update: { name: "CE 2" },
-    create: {
-      name: "CE 2",
-      semesterId: semester.id,
-    },
+    create: { name: "CE 2", semesterId: semester.id },
   });
 
   const div3 = await prisma.division.upsert({
     where: { name_semesterId: { name: "CE 3", semesterId: semester.id } },
     update: { name: "CE 3" },
-    create: {
-      name: "CE 3",
-      semesterId: semester.id,
-    },
+    create: { name: "CE 3", semesterId: semester.id },
   });
 
   const div4 = await prisma.division.upsert({
     where: { name_semesterId: { name: "CE 4", semesterId: semester.id } },
     update: { name: "CE 4" },
-    create: {
-      name: "CE 4",
-      semesterId: semester.id,
-    },
+    create: { name: "CE 4", semesterId: semester.id },
   });
 
-  for (const div of [division, div2, div3, div4]) {
+  const allDivisions = [division, div2, div3, div4];
+
+  for (const div of allDivisions) {
     await prisma.batch.upsert({
       where: { name_divisionId: { name: "A", divisionId: div.id } },
       update: {},
@@ -121,47 +112,51 @@ async function main() {
     });
   }
 
-  // 2. Create Users
-  const admin = await prisma.user.upsert({
+  // 2. Create Admin & HOD
+  await prisma.user.upsert({
     where: { email: "admin@college.edu" },
     update: {},
     create: {
       email: "admin@college.edu",
       name: "Admin User",
       role: Role.ADMIN,
-      passwordHash,
+      passwordHash: adminPasswordHash,
       branchId: branch.id,
     },
   });
 
-  const hod = await prisma.user.upsert({
+  await prisma.user.upsert({
     where: { email: "hod@college.edu" },
     update: {},
     create: {
       email: "hod@college.edu",
       name: "Head of Department",
       role: Role.HOD,
-      passwordHash,
+      passwordHash: adminPasswordHash,
       branchId: branch.id,
     },
   });
 
+  // 3. Create Faculty — password = lowercase(code) + "ce"
   const facultyMap = new Map<string, string>();
   for (const f of dbData.faculties) {
+    const facultyPassword = f.code.toLowerCase() + "ce";
+    const facultyPasswordHash = await bcrypt.hash(facultyPassword, 10);
     const user = await prisma.user.upsert({
       where: { email: f.email },
-      update: { name: f.name },
+      update: { name: f.name, passwordHash: facultyPasswordHash },
       create: {
         email: f.email,
         name: f.name,
         role: Role.FACULTY,
-        passwordHash,
+        passwordHash: facultyPasswordHash,
         branchId: branch.id,
       },
     });
     facultyMap.set(f.code, user.id);
   }
 
+  // 4. Create Courses
   const courseMap = new Map<string, string>();
   for (const c of dbData.courses) {
     const course = await prisma.course.upsert({
@@ -177,10 +172,8 @@ async function main() {
     courseMap.set(c.code, course.id);
   }
 
+  // 5. Create Timetable Entries
   await prisma.timetableEntry.deleteMany();
-
-  const allDivisions = [division, div2, div3, div4];
-  const divisionIdMap = { "CE 1": division.id, "CE 2": div2.id, "CE 3": div3.id, "CE 4": div4.id } as Record<string, string>;
 
   for (const div of allDivisions) {
     const divBatchA = await prisma.batch.findUnique({ where: { name_divisionId: { name: "A", divisionId: div.id } } });
@@ -188,7 +181,7 @@ async function main() {
     const divBatchC = await prisma.batch.findUnique({ where: { name_divisionId: { name: "C", divisionId: div.id } } });
     const localBatchMap = { A: divBatchA?.id, B: divBatchB?.id, C: divBatchC?.id } as Record<string, string>;
 
-    const divEntries = dbData.entries.filter(e => e.division === div.name);
+    const divEntries = dbData.entries.filter((e) => e.division === div.name);
 
     for (const entry of divEntries) {
       const facultyId = facultyMap.get(entry.facultyCode);
@@ -214,10 +207,10 @@ async function main() {
     }
   }
 
-  const studentBatchA = await prisma.batch.findUnique({ where: { name_divisionId: { name: "A", divisionId: division.id } } });
-  const studentBatchB = await prisma.batch.findUnique({ where: { name_divisionId: { name: "B", divisionId: division.id } } });
-  const studentBatchC = await prisma.batch.findUnique({ where: { name_divisionId: { name: "C", divisionId: division.id } } });
-  const batchList = [studentBatchA, studentBatchB, studentBatchC];
+  // 6. Create Students — password = "ce4" + last 3 digits of enrollmentNo
+  //    Distribute evenly across CE 1, CE 2, CE 3, CE 4
+  await prisma.attendanceRecord.deleteMany();
+  await prisma.session.deleteMany();
 
   const studentsPath = path.join(__dirname, "students.json");
   const studentsData = JSON.parse(fs.readFileSync(studentsPath, "utf-8")) as {
@@ -226,71 +219,69 @@ async function main() {
     enrollmentNo: string;
   }[];
 
-  await prisma.attendanceRecord.deleteMany();
-  await prisma.session.deleteMany();
+  // Build batch maps for all divisions
+  const divBatchMaps: { div: typeof division; batches: (string | undefined)[] }[] = [];
+  for (const div of allDivisions) {
+    const bA = await prisma.batch.findUnique({ where: { name_divisionId: { name: "A", divisionId: div.id } } });
+    const bB = await prisma.batch.findUnique({ where: { name_divisionId: { name: "B", divisionId: div.id } } });
+    const bC = await prisma.batch.findUnique({ where: { name_divisionId: { name: "C", divisionId: div.id } } });
+    divBatchMaps.push({ div, batches: [bA?.id, bB?.id, bC?.id] });
+  }
 
   for (let i = 0; i < studentsData.length; i++) {
     const s = studentsData[i];
     const email = `${s.enrollmentNo}@student.college.edu`;
-    const batch = batchList[i % 3];
+
+    // Password: ce4 + last 3 digits of enrollment number
+    const last3 = s.enrollmentNo.slice(-3);
+    const studentPassword = `ce4${last3}`;
+    const studentPasswordHash = await bcrypt.hash(studentPassword, 10);
+
+    // Distribute across 4 divisions round-robin
+    const divIndex = i % 4;
+    const { div, batches } = divBatchMaps[divIndex];
+    // Assign batch within the division
+    const batchId = batches[Math.floor(i / 4) % 3];
 
     await prisma.user.upsert({
       where: { email },
       update: {
         name: s.name,
         enrollmentNo: s.enrollmentNo,
-        divisionId: division.id,
-        batchId: batch?.id,
+        passwordHash: studentPasswordHash,
+        divisionId: div.id,
+        batchId: batchId ?? null,
+        semesterId: semester.id,
       },
       create: {
         email,
         enrollmentNo: s.enrollmentNo,
         name: s.name,
         role: Role.STUDENT,
-        passwordHash,
+        passwordHash: studentPasswordHash,
         branchId: branch.id,
         semesterId: semester.id,
-        divisionId: division.id,
-        batchId: batch?.id,
+        divisionId: div.id,
+        batchId: batchId ?? null,
       },
     });
   }
 
-  // Also create demo student@college.edu account pointing to Nishit Panchal
-  await prisma.user.upsert({
-    where: { email: "student@college.edu" },
-    update: {
-      name: "Panchal Nishit Chirayubhai",
-      divisionId: division.id,
-      batchId: studentBatchA?.id,
-    },
-    create: {
-      email: "student@college.edu",
-      name: "Panchal Nishit Chirayubhai",
-      role: Role.STUDENT,
-      passwordHash,
-      branchId: branch.id,
-      semesterId: semester.id,
-      divisionId: division.id,
-      batchId: studentBatchA?.id,
-    },
-  });
+  // Remove old demo student@college.edu (all students now use enrollment emails)
+  await prisma.user.deleteMany({ where: { email: "student@college.edu" } });
 
-  // Auto-generate Sessions for Today based on Timetable Entries
+  // 7. Auto-generate Sessions for Today
   const today = new Date();
-  const currentDayOfWeek = today.getDay() === 0 ? 1 : today.getDay(); // Default Sunday to Monday
+  const currentDayOfWeek = today.getDay() === 0 ? 1 : today.getDay();
 
   const todayEntries = await prisma.timetableEntry.findMany({
     where: { dayOfWeek: currentDayOfWeek },
-    include: { course: true, faculty: true }
+    include: { course: true, faculty: true },
   });
 
   console.log(`Creating ${todayEntries.length} sessions for today (Day ${currentDayOfWeek})...`);
 
   for (const entry of todayEntries) {
-    const sessionDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    
-    // Construct start & end times for today
     const stHours = entry.startTime.getUTCHours();
     const stMins = entry.startTime.getUTCMinutes();
     const etHours = entry.endTime.getUTCHours();
@@ -304,7 +295,7 @@ async function main() {
         timetableEntryId: entry.id,
         courseId: entry.courseId,
         facultyId: entry.facultyId,
-        date: sessionDate,
+        date: new Date(today.getFullYear(), today.getMonth(), today.getDate()),
         startTime,
         endTime,
         status: "SCHEDULED",
@@ -314,7 +305,7 @@ async function main() {
     });
   }
 
-  // Seed default system config
+  // 8. System Config
   const defaultConfig = [
     { key: "slots_per_day", value: "6" },
     { key: "lan_restriction_enabled", value: "false" },
@@ -333,6 +324,14 @@ async function main() {
   }
 
   console.log("Database seeded successfully!");
+  console.log("");
+  console.log("=== Login Credentials ===");
+  console.log("Admin:   admin@college.edu          / password123");
+  console.log("HOD:     hod@college.edu            / password123");
+  console.log("Faculty: byp@faculty.college.edu    / bypce");
+  console.log("Faculty: nrs@faculty.college.edu    / nrsce");
+  console.log("Student: 240410107071@student.college.edu / ce4071");
+  console.log("Student: 240410107093@student.college.edu / ce4093");
 }
 
 main()

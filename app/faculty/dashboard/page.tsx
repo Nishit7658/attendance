@@ -8,10 +8,10 @@ import AdHocForm from "@/components/faculty/AdHocForm";
 
 export default async function FacultyDashboardPage() {
   const session = await auth();
-  if (!session?.user?.id) redirect("/login");
+  if (!session?.user?.email) redirect("/login");
 
   const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
+    where: { email: session.user.email },
     select: { id: true, role: true },
   });
   if (!user || !["FACULTY", "HOD", "ADMIN"].includes(user.role)) {

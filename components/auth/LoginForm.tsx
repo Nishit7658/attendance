@@ -39,16 +39,16 @@ export function LoginForm() {
     }
   }
 
-  async function handleQuickLogin(testEmail: string) {
+  async function handleQuickLogin(testEmail: string, testPassword: string) {
     setEmail(testEmail)
-    setPassword("password123")
+    setPassword(testPassword)
     setError("")
     setLoading(true)
 
     try {
       const result = await signIn("credentials", {
         email: testEmail,
-        password: "password123",
+        password: testPassword,
         redirect: false,
       })
 
@@ -126,7 +126,7 @@ export function LoginForm() {
             type="button"
             className="text-xs"
             disabled={loading}
-            onClick={() => handleQuickLogin("admin@college.edu")}
+            onClick={() => handleQuickLogin("admin@college.edu", "password123")}
           >
             Admin
           </Button>
@@ -136,7 +136,7 @@ export function LoginForm() {
             type="button"
             className="text-xs"
             disabled={loading}
-            onClick={() => handleQuickLogin("hod@college.edu")}
+            onClick={() => handleQuickLogin("hod@college.edu", "password123")}
           >
             HOD
           </Button>
@@ -146,7 +146,7 @@ export function LoginForm() {
             type="button"
             className="text-xs"
             disabled={loading}
-            onClick={() => handleQuickLogin("student@college.edu")}
+            onClick={() => handleQuickLogin("240410107093@student.college.edu", "ce4093")}
           >
             Student (Nishit)
           </Button>
@@ -156,7 +156,7 @@ export function LoginForm() {
             type="button"
             className="text-xs"
             disabled={loading}
-            onClick={() => handleQuickLogin("byp@faculty.college.edu")}
+            onClick={() => handleQuickLogin("byp@faculty.college.edu", "bypce")}
           >
             Faculty (BYP)
           </Button>
@@ -172,29 +172,30 @@ export function LoginForm() {
             disabled={loading}
             onChange={(e) => {
               if (e.target.value) {
-                handleQuickLogin(e.target.value);
+                const [email, pwd] = e.target.value.split("|");
+                handleQuickLogin(email, pwd);
               }
             }}
             defaultValue=""
           >
             <option value="" disabled>-- Select Faculty --</option>
-            <option value="byp@faculty.college.edu">Dr. Brijesh Panchal (BYP)</option>
-            <option value="nrs@faculty.college.edu">Dr. Neha Soni (NRS)</option>
-            <option value="jbs@faculty.college.edu">Prof. Jayna Shah (JBS)</option>
-            <option value="hvc@faculty.college.edu">Prof. Hetal Chauhan (HVC)</option>
-            <option value="djp@faculty.college.edu">Prof. Divya Parmar (DJP)</option>
-            <option value="mpp@faculty.college.edu">Dr. Minal Patel (MPP)</option>
-            <option value="pjd@faculty.college.edu">Prof. Prexa Desai (PJD)</option>
-            <option value="mhs@faculty.college.edu">Prof. Milind Shah (MHS)</option>
-            <option value="amp@faculty.college.edu">Prof. Abhishek Patel (AMP)</option>
-            <option value="smp@faculty.college.edu">Dr. Shrina Patel (SMP)</option>
-            <option value="mcj@faculty.college.edu">Prof. Mital Joshi (MCJ)</option>
-            <option value="nsv@faculty.college.edu">Prof. Nisha Velani (NSV)</option>
-            <option value="pvb@faculty.college.edu">Prof. Parul Bakaraniya (PVB)</option>
-            <option value="nbs@faculty.college.edu">Prof. Nidhi Shah (NBS)</option>
-            <option value="knu@faculty.college.edu">Prof. Keyur Upadhyay (KNU)</option>
-            <option value="sdb@faculty.college.edu">Prof. Swati Bopaliya (SDB)</option>
-            <option value="kss@faculty.college.edu">Prof. Keyur Suthar (KSS)</option>
+            <option value="byp@faculty.college.edu|bypce">Dr. Brijesh Panchal (BYP) — bypce</option>
+            <option value="nrs@faculty.college.edu|nrsce">Dr. Neha Soni (NRS) — nrsce</option>
+            <option value="jbs@faculty.college.edu|jbsce">Prof. Jayna Shah (JBS) — jbsce</option>
+            <option value="hvc@faculty.college.edu|hvce">Prof. Hetal Chauhan (HVC) — hvce</option>
+            <option value="djp@faculty.college.edu|djpce">Prof. Divya Parmar (DJP) — djpce</option>
+            <option value="mpp@faculty.college.edu|mppce">Dr. Minal Patel (MPP) — mppce</option>
+            <option value="pjd@faculty.college.edu|pjdce">Prof. Prexa Desai (PJD) — pjdce</option>
+            <option value="mhs@faculty.college.edu|mhsce">Prof. Milind Shah (MHS) — mhsce</option>
+            <option value="amp@faculty.college.edu|ampce">Prof. Abhishek Patel (AMP) — ampce</option>
+            <option value="smp@faculty.college.edu|smpce">Dr. Shrina Patel (SMP) — smpce</option>
+            <option value="mcj@faculty.college.edu|mcjce">Prof. Mital Joshi (MCJ) — mcjce</option>
+            <option value="nsv@faculty.college.edu|nsvce">Prof. Nisha Velani (NSV) — nsvce</option>
+            <option value="pvb@faculty.college.edu|pvbce">Prof. Parul Bakaraniya (PVB) — pvbce</option>
+            <option value="nbs@faculty.college.edu|nbsce">Prof. Nidhi Shah (NBS) — nbsce</option>
+            <option value="knu@faculty.college.edu|knuce">Prof. Keyur Upadhyay (KNU) — knuce</option>
+            <option value="sdb@faculty.college.edu|sdbce">Prof. Swati Bopaliya (SDB) — sdbce</option>
+            <option value="kss@faculty.college.edu|kssce">Prof. Keyur Suthar (KSS) — kssce</option>
           </select>
         </div>
       </div>

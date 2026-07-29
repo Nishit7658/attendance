@@ -6,12 +6,12 @@ import { verifyQrToken } from "@/lib/qr-token";
 export async function POST(request: NextRequest) {
   try {
     const authSession = await auth();
-    if (!authSession?.user?.id) {
+    if (!authSession?.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const user = await prisma.user.findUnique({
-      where: { id: authSession.user.id },
+      where: { email: authSession.user.email },
       select: { id: true, role: true },
     });
     if (!user || user.role !== "STUDENT") {
