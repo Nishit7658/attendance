@@ -71,6 +71,11 @@ export default function LiveSessionClient({
   const connect = useCallback(() => {
     if (!mountedRef.current) return;
 
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
+    }
+
     const es = new EventSource(`/api/faculty/sessions/${sessionId}/events`);
     eventSourceRef.current = es;
 

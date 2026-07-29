@@ -98,6 +98,10 @@ export async function GET(
         if (!closed) cleanup();
       }, 55 * 60 * 1000);
 
+      const onAbort = () => {
+        cleanup();
+      };
+
       const cleanup = () => {
         if (closed) return;
         closed = true;
@@ -105,13 +109,22 @@ export async function GET(
         clearInterval(keepAlive);
         clearTimeout(safetyTimeout);
         try {
+          request.signal.removeEventListener("abort", onAbort);
+        } catch {
+          // ignore
+        }
+        try {
           controller.close();
         } catch {
           // already closed
         }
       };
 
-      request.signal.addEventListener("abort", cleanup);
+      if (request.signal.aborted) {
+        cleanup();
+      } else {
+        request.signal.addEventListener("abort", onAbort, { once: true });
+      }
     },
   });
 
