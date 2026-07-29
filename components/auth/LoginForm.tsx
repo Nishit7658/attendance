@@ -39,33 +39,6 @@ export function LoginForm() {
     }
   }
 
-  async function handleQuickLogin(testEmail: string, testPassword: string) {
-    setEmail(testEmail)
-    setPassword(testPassword)
-    setError("")
-    setLoading(true)
-
-    try {
-      const result = await signIn("credentials", {
-        email: testEmail,
-        password: testPassword,
-        redirect: false,
-      })
-
-      if (result?.error) {
-        setError("Invalid email or password. Please try again.")
-        setLoading(false)
-        return
-      }
-
-      router.push("/")
-      router.refresh()
-    } catch {
-      setError("An unexpected error occurred. Please try again.")
-      setLoading(false)
-    }
-  }
-
   return (
     <div className="w-full bg-surface p-8 sm:p-10 rounded-lg border border-border shadow-sm">
       <div className="mb-8">
@@ -86,13 +59,13 @@ export function LoginForm() {
       <form onSubmit={handleSubmit} className="space-y-5">
         <div className="space-y-4">
           <Input
-            label="College Email"
-            type="email"
+            label="Enrollment No / Username"
+            type="text"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="name@college.edu"
+            placeholder="e.g. 240410107071 or byp@faculty"
             required
-            autoComplete="email"
+            autoComplete="username"
           />
           <Input
             label="Password"
@@ -113,92 +86,6 @@ export function LoginForm() {
           {loading ? "Authenticating..." : "Sign in"}
         </Button>
       </form>
-
-      {/* Quick Login Shortcuts for Testing & Faculty Presentation */}
-      <div className="mt-8 pt-6 border-t border-border">
-        <p className="text-[11px] font-medium text-muted uppercase tracking-wider mb-3 text-center">
-          Quick Demo Sign-In
-        </p>
-        <div className="grid grid-cols-2 gap-2 mb-3">
-          <Button
-            variant="secondary"
-            size="sm"
-            type="button"
-            className="text-xs"
-            disabled={loading}
-            onClick={() => handleQuickLogin("admin@college.edu", "password123")}
-          >
-            Admin
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            type="button"
-            className="text-xs"
-            disabled={loading}
-            onClick={() => handleQuickLogin("hod@college.edu", "password123")}
-          >
-            HOD
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            type="button"
-            className="text-xs"
-            disabled={loading}
-            onClick={() => handleQuickLogin("240410107093@student.college.edu", "ce4093")}
-          >
-            Student (Nishit)
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            type="button"
-            className="text-xs"
-            disabled={loading}
-            onClick={() => handleQuickLogin("byp@faculty.college.edu", "bypce")}
-          >
-            Faculty (BYP)
-          </Button>
-        </div>
-
-        {/* Faculty Select Dropdown */}
-        <div className="mt-3">
-          <label className="block text-[11px] font-medium text-muted uppercase tracking-wider mb-1 text-center">
-            Sign In as Specific Faculty
-          </label>
-          <select
-            className="w-full bg-bg border border-border rounded px-2.5 py-1.5 text-xs text-ink focus:outline-none focus:border-primary"
-            disabled={loading}
-            onChange={(e) => {
-              if (e.target.value) {
-                const [email, pwd] = e.target.value.split("|");
-                handleQuickLogin(email, pwd);
-              }
-            }}
-            defaultValue=""
-          >
-            <option value="" disabled>-- Select Faculty --</option>
-            <option value="byp@faculty.college.edu|bypce">Dr. Brijesh Panchal (BYP) — bypce</option>
-            <option value="nrs@faculty.college.edu|nrsce">Dr. Neha Soni (NRS) — nrsce</option>
-            <option value="jbs@faculty.college.edu|jbsce">Prof. Jayna Shah (JBS) — jbsce</option>
-            <option value="hvc@faculty.college.edu|hvce">Prof. Hetal Chauhan (HVC) — hvce</option>
-            <option value="djp@faculty.college.edu|djpce">Prof. Divya Parmar (DJP) — djpce</option>
-            <option value="mpp@faculty.college.edu|mppce">Dr. Minal Patel (MPP) — mppce</option>
-            <option value="pjd@faculty.college.edu|pjdce">Prof. Prexa Desai (PJD) — pjdce</option>
-            <option value="mhs@faculty.college.edu|mhsce">Prof. Milind Shah (MHS) — mhsce</option>
-            <option value="amp@faculty.college.edu|ampce">Prof. Abhishek Patel (AMP) — ampce</option>
-            <option value="smp@faculty.college.edu|smpce">Dr. Shrina Patel (SMP) — smpce</option>
-            <option value="mcj@faculty.college.edu|mcjce">Prof. Mital Joshi (MCJ) — mcjce</option>
-            <option value="nsv@faculty.college.edu|nsvce">Prof. Nisha Velani (NSV) — nsvce</option>
-            <option value="pvb@faculty.college.edu|pvbce">Prof. Parul Bakaraniya (PVB) — pvbce</option>
-            <option value="nbs@faculty.college.edu|nbsce">Prof. Nidhi Shah (NBS) — nbsce</option>
-            <option value="knu@faculty.college.edu|knuce">Prof. Keyur Upadhyay (KNU) — knuce</option>
-            <option value="sdb@faculty.college.edu|sdbce">Prof. Swati Bopaliya (SDB) — sdbce</option>
-            <option value="kss@faculty.college.edu|kssce">Prof. Keyur Suthar (KSS) — kssce</option>
-          </select>
-        </div>
-      </div>
     </div>
   )
 }
