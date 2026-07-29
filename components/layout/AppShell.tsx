@@ -3,7 +3,6 @@
 import { useState } from "react"
 import { Sidebar } from "./Sidebar"
 import { Topbar } from "./Topbar"
-import { usePathname } from "next/navigation"
 
 type Role = "faculty" | "hod" | "admin" | "student"
 
@@ -14,7 +13,6 @@ interface AppShellProps {
 
 export default function AppShell({ children, role }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const pathname = usePathname()
 
   return (
     <div className="relative flex min-h-screen bg-bg overflow-hidden text-ink font-sans" data-main-content>

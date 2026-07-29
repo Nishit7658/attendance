@@ -126,34 +126,50 @@ export function TimetableCalendar({
               clusters.push(currentCluster)
             }
 
+            interface PlacedEntry {
+              col: number;
+              totalCols: number;
+              startMins: number;
+              endMins: number;
+              id: string;
+              title: string;
+              subtitle?: string;
+              room?: string;
+              startTime: Date;
+              endTime: Date;
+              href?: string;
+            }
+
             // Assign columns within each cluster
-            const placedEntries = []
+            const placedEntries: PlacedEntry[] = []
             for (const cluster of clusters) {
               const cols: (typeof dayEntries)[] = []
               for (const entry of cluster) {
+                const pEntry = entry as typeof entry & PlacedEntry
                 let placed = false
                 for (let i = 0; i < cols.length; i++) {
                   if (cols[i][cols[i].length - 1].endMins <= entry.startMins) {
                     cols[i].push(entry)
-                    ;(entry as any).col = i
+                    pEntry.col = i
                     placed = true
                     break
                   }
                 }
                 if (!placed) {
-                  ;(entry as any).col = cols.length
+                  pEntry.col = cols.length
                   cols.push([entry])
                 }
               }
               for (const entry of cluster) {
-                ;(entry as any).totalCols = cols.length
-                placedEntries.push(entry)
+                const pEntry = entry as typeof entry & PlacedEntry
+                pEntry.totalCols = cols.length
+                placedEntries.push(pEntry)
               }
             }
 
             return (
               <div key={dayIdx} className="flex-1 border-r border-border/40 last:border-r-0 relative">
-                {placedEntries.map((entry: any) => {
+                {placedEntries.map((entry) => {
                   // Calculate absolute position based on startHour
                   const top = ((entry.startMins - startHour * 60) / 60) * HOUR_HEIGHT
                   const height = ((entry.endMins - entry.startMins) / 60) * HOUR_HEIGHT

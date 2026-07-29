@@ -36,7 +36,7 @@ export default function LiveSessionClient({
   courseCode,
 }: LiveSessionClientProps) {
   const router = useRouter();
-  const [tokenData, setTokenData] = useState<TokenData | null>(null);
+  const [_tokenData, setTokenData] = useState<TokenData | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [attendance, setAttendance] = useState<AttendanceData | null>(null);
   const [students, setStudents] = useState<StudentStatus[]>([]);

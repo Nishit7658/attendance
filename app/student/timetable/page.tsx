@@ -32,7 +32,15 @@ export default async function StudentTimetablePage({
   const selectedDay = dayParam && dayParam !== "all" ? parseInt(dayParam) : undefined;
   const visibleDays = selectedDay !== undefined ? [selectedDay] : [1, 2, 3, 4, 5, 6];
 
-  let entries: any[] = [];
+  let entries: {
+    id: string;
+    dayOfWeek: number;
+    startTime: Date;
+    endTime: Date;
+    room: string;
+    course: { code: string; name: string };
+    faculty: { name: string };
+  }[] = [];
 
   if (selectedDivId) {
     entries = await prisma.timetableEntry.findMany({
