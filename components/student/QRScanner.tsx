@@ -69,9 +69,12 @@ export default function QRScanner() {
       });
 
       if (videoRef.current) {
-        videoRef.current.srcObject = stream;
+        const video = videoRef.current;
+        video.srcObject = stream;
+        video.onloadedmetadata = () => {
+          video.play().catch(() => {});
+        };
       }
-      await videoRef.current?.play();
 
       if (!activeRef.current) { cleanup(); return; }
 
@@ -81,7 +84,7 @@ export default function QRScanner() {
       intervalRef.current = window.setInterval(() => {
         if (stateRef.current !== "scanning" || !activeRef.current) return;
         scan();
-      }, 500);
+      }, 300);
     } catch (err: unknown) {
       if (!activeRef.current) return;
       if (err instanceof DOMException && err.name === "NotAllowedError") {
@@ -94,6 +97,33 @@ export default function QRScanner() {
         setState("error");
       }
     }
+  }
+
+  function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = canvasRef.current || document.createElement("canvas");
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        ctx.drawImage(img, 0, 0);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height);
+        if (code?.data) {
+          handleScan(code.data);
+        } else {
+          setErrorMessage("No QR code found in uploaded image.");
+          setState("error");
+        }
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
   }
 
   function scan() {
@@ -190,25 +220,41 @@ export default function QRScanner() {
       )}
 
       {state === "scanning" && (
-        <div className="relative overflow-hidden rounded-lg bg-black">
-          <video
-            ref={videoRef}
-            className="w-full object-cover"
-            playsInline
-            muted
-          />
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <div className="relative aspect-square w-3/4 max-w-[260px]">
-              <div className="absolute inset-0 shadow-[0_0_0_999px_rgba(0,0,0,0.45)]" />
-              <div className="absolute left-0 top-0 h-8 w-8 rounded-tl-lg border-l-2 border-t-2 border-navy-400" />
-              <div className="absolute right-0 top-0 h-8 w-8 rounded-tr-lg border-r-2 border-t-2 border-navy-400" />
-              <div className="absolute bottom-0 left-0 h-8 w-8 rounded-bl-lg border-l-2 border-b-2 border-navy-400" />
-              <div className="absolute bottom-0 right-0 h-8 w-8 rounded-br-lg border-r-2 border-b-2 border-navy-400" />
+        <div className="flex flex-col gap-3">
+          <div className="relative overflow-hidden rounded-lg bg-black min-h-[280px] flex items-center justify-center">
+            <video
+              ref={videoRef}
+              className="w-full h-full min-h-[280px] object-cover"
+              autoPlay
+              playsInline
+              muted
+            />
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+              <div className="relative aspect-square w-3/4 max-w-[260px]">
+                <div className="absolute inset-0 shadow-[0_0_0_999px_rgba(0,0,0,0.45)]" />
+                <div className="absolute left-0 top-0 h-8 w-8 rounded-tl-lg border-l-2 border-t-2 border-navy-400" />
+                <div className="absolute right-0 top-0 h-8 w-8 rounded-tr-lg border-r-2 border-t-2 border-navy-400" />
+                <div className="absolute bottom-0 left-0 h-8 w-8 rounded-bl-lg border-l-2 border-b-2 border-navy-400" />
+                <div className="absolute bottom-0 right-0 h-8 w-8 rounded-br-lg border-r-2 border-b-2 border-navy-400" />
+              </div>
             </div>
+            <p className="absolute bottom-3 left-0 right-0 text-center text-xs text-white/80 font-medium drop-shadow">
+              Point camera at QR code
+            </p>
           </div>
-          <p className="absolute bottom-3 left-0 right-0 text-center text-xs text-white/60">
-            Point camera at QR code
-          </p>
+
+          <div className="flex items-center justify-center">
+            <label className="cursor-pointer text-xs font-medium text-primary hover:underline bg-primary/5 px-3 py-1.5 rounded border border-primary/20 transition-colors">
+              📷 Select / Take Photo of QR
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={handleFileUpload}
+              />
+            </label>
+          </div>
         </div>
       )}
 
