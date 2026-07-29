@@ -307,7 +307,7 @@ async function main() {
         date: sessionDate,
         startTime,
         endTime,
-        status: "ACTIVE",
+        status: "SCHEDULED",
         qrToken: `QR-${entry.id}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
         isAdHoc: false,
       },

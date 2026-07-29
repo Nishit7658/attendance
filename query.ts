@@ -2,14 +2,17 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-  const entries = await prisma.timetableEntry.findMany({
-    include: { division: true, course: true, batch: true }
+  const records = await prisma.attendanceRecord.findMany({
+    include: { student: true, session: true }
   });
-  console.log('Total entries:', entries.length);
-  console.log(JSON.stringify(entries.slice(0, 3), null, 2));
+  console.log('Total attendance records:', records.length);
+  console.log(JSON.stringify(records.slice(0, 10), null, 2));
 
-  const divisions = await prisma.division.findMany();
-  console.log('Divisions:', JSON.stringify(divisions, null, 2));
+  const sessions = await prisma.session.findMany({
+    include: { _count: { select: { attendanceRecords: true } } }
+  });
+  console.log('Total sessions:', sessions.length);
+  console.log(JSON.stringify(sessions.slice(0, 5), null, 2));
 }
 
 main()

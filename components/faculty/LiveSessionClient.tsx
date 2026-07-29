@@ -374,26 +374,31 @@ export default function LiveSessionClient({
                             }`}
                           >
                             {student.status === "PRESENT"
-                              ? "Present"
+                              ? "Scanned / Present"
                               : student.status === "LATE"
                               ? "Late"
                               : "Absent"}
                           </span>
                         ) : (
                           <div className="flex items-center gap-1.5">
+                            <span className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded font-normal hidden sm:inline-block">
+                              Awaiting Scan
+                            </span>
                             <button
                               onClick={() => handleMarkStudent(student.id, "PRESENT")}
                               disabled={isMarking}
-                              className="rounded bg-green-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
+                              className="rounded bg-green-600 px-2 py-1 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
+                              title="Manually mark Present"
                             >
-                              {isMarking ? "..." : "Present"}
+                              {isMarking ? "..." : "+ Present"}
                             </button>
                             <button
                               onClick={() => handleMarkStudent(student.id, "ABSENT")}
                               disabled={isMarking}
-                              className="rounded bg-red-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50 transition-colors"
+                              className="rounded bg-red-600 px-2 py-1 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50 transition-colors"
+                              title="Manually mark Absent"
                             >
-                              {isMarking ? "..." : "Absent"}
+                              {isMarking ? "..." : "+ Absent"}
                             </button>
                           </div>
                         )}
