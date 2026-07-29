@@ -68,14 +68,6 @@ export default function QRScanner() {
         };
       });
 
-      if (videoRef.current) {
-        const video = videoRef.current;
-        video.srcObject = stream;
-        video.onloadedmetadata = () => {
-          video.play().catch(() => {});
-        };
-      }
-
       if (!activeRef.current) { cleanup(); return; }
 
       setState("scanning");
@@ -189,6 +181,17 @@ export default function QRScanner() {
       setState("error");
     }
   }
+
+  useEffect(() => {
+    if (state === "scanning" && videoRef.current && streamRef.current) {
+      const video = videoRef.current;
+      video.srcObject = streamRef.current;
+      video.onloadedmetadata = () => {
+        video.play().catch(() => {});
+      };
+      video.play().catch(() => {});
+    }
+  }, [state]);
 
   useEffect(() => {
     activeRef.current = true;
