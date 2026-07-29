@@ -45,7 +45,7 @@ export default function LiveSessionClient({
   const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [markingId, setMarkingId] = useState<string | null>(null);
-  const [showRoster, setShowRoster] = useState(false);
+  const [rosterTab, setRosterTab] = useState<"pending" | "present" | "all">("pending");
   const [now, setNow] = useState(Date.now());
   const [nextRefresh, setNextRefresh] = useState<number | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -322,99 +322,140 @@ export default function LiveSessionClient({
 
         {/* Student Roster */}
         <div className="flex-1 w-full lg:max-w-md">
-          <button
-            onClick={() => setShowRoster(!showRoster)}
-            className="flex items-center justify-between w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
-          >
-            <span>
-              Student Roster
-              <span className="ml-2 text-xs text-slate-400 font-normal">
-                {markedCount}/{students.length} marked
-                {unmarkedCount > 0 && (
-                  <span className="ml-1 text-amber-600 font-medium">
-                    ({unmarkedCount} pending)
-                  </span>
-                )}
+          <div className="rounded-lg border border-slate-200 bg-white overflow-hidden shadow-sm">
+            {/* Roster Header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-slate-50">
+              <span className="text-sm font-semibold text-slate-800">
+                Student Roster
               </span>
-            </span>
-            <svg
-              className={`h-4 w-4 transition-transform ${showRoster ? "rotate-180" : ""}`}
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-
-          {showRoster && (
-            <div className="mt-2 rounded-lg border border-slate-200 bg-white max-h-[400px] overflow-y-auto">
-              {students.length === 0 ? (
-                <div className="px-4 py-8 text-center text-sm text-slate-500">
-                  Loading students...
-                </div>
-              ) : (
-                <div className="divide-y divide-slate-100">
-                  {students.map((student) => {
-                    const isMarked = !!student.status;
-                    const isMarking = markingId === student.id;
-                    return (
-                      <div key={student.id} className="flex items-center gap-3 px-4 py-2.5">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-slate-900 truncate">
-                            {student.name}
-                          </p>
-                          <p className="text-xs text-slate-400 truncate">
-                            {student.rollNo /* enrollmentNo or email fallback */}
-                          </p>
-                        </div>
-                        {isMarked ? (
-                          <span
-                            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                              student.status === "PRESENT"
-                                ? "bg-green-50 text-green-700"
-                                : student.status === "LATE"
-                                ? "bg-amber-50 text-amber-700"
-                                : "bg-red-50 text-red-700"
-                            }`}
-                          >
-                            {student.status === "PRESENT"
-                              ? "Scanned / Present"
-                              : student.status === "LATE"
-                              ? "Late"
-                              : "Absent"}
-                          </span>
-                        ) : (
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded font-normal hidden sm:inline-block">
-                              Awaiting Scan
-                            </span>
-                            <button
-                              onClick={() => handleMarkStudent(student.id, "PRESENT")}
-                              disabled={isMarking}
-                              className="rounded bg-green-600 px-2 py-1 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
-                              title="Manually mark Present"
-                            >
-                              {isMarking ? "..." : "+ Present"}
-                            </button>
-                            <button
-                              onClick={() => handleMarkStudent(student.id, "ABSENT")}
-                              disabled={isMarking}
-                              className="rounded bg-red-600 px-2 py-1 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50 transition-colors"
-                              title="Manually mark Absent"
-                            >
-                              {isMarking ? "..." : "+ Absent"}
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+              <span className="text-xs text-slate-500 font-medium">
+                {markedCount}/{students.length} Scanned
+              </span>
             </div>
-          )}
+
+            {/* Roster Filter Tabs */}
+            <div className="flex border-b border-slate-200 bg-white text-xs font-medium">
+              <button
+                onClick={() => setRosterTab("pending")}
+                className={`flex-1 py-2 px-3 text-center border-b-2 transition-colors ${
+                  rosterTab === "pending"
+                    ? "border-amber-500 text-amber-700 font-semibold bg-amber-50/50"
+                    : "border-transparent text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                Awaiting Scan ({unmarkedCount})
+              </button>
+              <button
+                onClick={() => setRosterTab("present")}
+                className={`flex-1 py-2 px-3 text-center border-b-2 transition-colors ${
+                  rosterTab === "present"
+                    ? "border-green-600 text-green-700 font-semibold bg-green-50/50"
+                    : "border-transparent text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                Scanned ({markedCount})
+              </button>
+              <button
+                onClick={() => setRosterTab("all")}
+                className={`flex-1 py-2 px-3 text-center border-b-2 transition-colors ${
+                  rosterTab === "all"
+                    ? "border-primary text-primary font-semibold bg-primary/5"
+                    : "border-transparent text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                All ({students.length})
+              </button>
+            </div>
+
+            {/* Roster List */}
+            <div className="max-h-[380px] overflow-y-auto divide-y divide-slate-100">
+              {(() => {
+                const filteredStudents = students.filter((s) => {
+                  if (rosterTab === "pending") return !s.status;
+                  if (rosterTab === "present") return !!s.status;
+                  return true;
+                });
+
+                if (students.length === 0) {
+                  return (
+                    <div className="px-4 py-8 text-center text-sm text-slate-500">
+                      Loading students...
+                    </div>
+                  );
+                }
+
+                if (filteredStudents.length === 0) {
+                  return (
+                    <div className="px-4 py-8 text-center text-sm text-slate-500">
+                      {rosterTab === "pending" ? (
+                        <p className="text-green-600 font-medium">
+                          🎉 All students have scanned! No pending students.
+                        </p>
+                      ) : rosterTab === "present" ? (
+                        <p className="text-slate-400">No students scanned yet.</p>
+                      ) : (
+                        <p className="text-slate-400">No students found.</p>
+                      )}
+                    </div>
+                  );
+                }
+
+                return filteredStudents.map((student) => {
+                  const isMarked = !!student.status;
+                  const isMarking = markingId === student.id;
+                  return (
+                    <div key={student.id} className="flex items-center gap-3 px-4 py-2.5">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-slate-900 truncate">
+                          {student.name}
+                        </p>
+                        <p className="text-xs text-slate-400 truncate">
+                          {student.rollNo}
+                        </p>
+                      </div>
+
+                      {isMarked ? (
+                        <span
+                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                            student.status === "PRESENT"
+                              ? "bg-green-50 text-green-700 border border-green-200"
+                              : student.status === "LATE"
+                              ? "bg-amber-50 text-amber-700 border border-amber-200"
+                              : "bg-red-50 text-red-700 border border-red-200"
+                          }`}
+                        >
+                          {student.status === "PRESENT"
+                            ? "✓ Scanned"
+                            : student.status === "LATE"
+                            ? "Late"
+                            : "Absent"}
+                        </span>
+                      ) : (
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => handleMarkStudent(student.id, "PRESENT")}
+                            disabled={isMarking}
+                            className="rounded bg-green-600 px-2 py-1 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
+                            title="Manually mark Present"
+                          >
+                            {isMarking ? "..." : "+ Present"}
+                          </button>
+                          <button
+                            onClick={() => handleMarkStudent(student.id, "ABSENT")}
+                            disabled={isMarking}
+                            className="rounded bg-red-600 px-2 py-1 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50 transition-colors"
+                            title="Manually mark Absent"
+                          >
+                            {isMarking ? "..." : "+ Absent"}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+          </div>
         </div>
       </div>
 
