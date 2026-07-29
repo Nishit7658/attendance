@@ -39,13 +39,12 @@ export default function LiveSessionClient({
   const [_tokenData, setTokenData] = useState<TokenData | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [attendance, setAttendance] = useState<AttendanceData | null>(null);
-  const [students, setStudents] = useState<StudentStatus[]>([]);
+  const [students, setStudents] = useState<StudentStatus[] | null>(null);
   const [connected, setConnected] = useState(true);
   const [ending, setEnding] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [markingId, setMarkingId] = useState<string | null>(null);
-  const [rosterTab, setRosterTab] = useState<"pending" | "present" | "all">("pending");
   const [now, setNow] = useState(Date.now());
   const [nextRefresh, setNextRefresh] = useState<number | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -64,7 +63,7 @@ export default function LiveSessionClient({
         }
       }
     } catch {
-      // silently fail — roster is secondary
+      // silently fail
     }
   }, [sessionId]);
 
@@ -82,7 +81,6 @@ export default function LiveSessionClient({
     es.onopen = () => {
       reconnectAttemptRef.current = 0;
       setConnected(true);
-      // Fetch student roster when connection opens
       fetchStudents();
     };
 
@@ -91,7 +89,6 @@ export default function LiveSessionClient({
         const data: TokenData = JSON.parse(e.data);
         setTokenData(data);
         setNextRefresh(Date.now() + 5000);
-
         QRCode.toDataURL(data.token, {
           width: 256,
           margin: 1,
@@ -106,7 +103,6 @@ export default function LiveSessionClient({
       try {
         const data: AttendanceData = JSON.parse(e.data);
         setAttendance(data);
-        // Refresh roster to reflect newly scanned students
         fetchStudents();
       } catch {
         // ignore parse errors
@@ -139,12 +135,10 @@ export default function LiveSessionClient({
     mountedRef.current = true;
     connect();
 
-    // Smooth timer updates
     const timer = setInterval(() => {
       if (mountedRef.current) setNow(Date.now());
     }, 100);
 
-    // Poll roster every 5 seconds for updates (SSE handles instant scan updates too)
     const rosterPoller = setInterval(() => {
       if (mountedRef.current) fetchStudents();
     }, 5000);
@@ -175,33 +169,37 @@ export default function LiveSessionClient({
     }
   }, [sessionId, router]);
 
-  const handleMarkStudent = useCallback(async (studentId: string, status: MarkStatus) => {
-    setMarkingId(studentId);
-    setError(null);
-    try {
-      const res = await fetch(
-        `/api/faculty/sessions/${sessionId}/attendance/${studentId}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status }),
+  const handleMarkStudent = useCallback(
+    async (studentId: string, status: MarkStatus) => {
+      setMarkingId(studentId);
+      setError(null);
+      try {
+        const res = await fetch(
+          `/api/faculty/sessions/${sessionId}/attendance/${studentId}`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status }),
+          }
+        );
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || "Failed to mark student");
         }
-      );
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Failed to mark student");
+        setStudents((prev) =>
+          prev
+            ? prev.map((s) => (s.id === studentId ? { ...s, status } : s))
+            : prev
+        );
+        await fetchStudents();
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "An error occurred");
+      } finally {
+        setMarkingId(null);
       }
-      // Optimistically update local state
-      setStudents((prev) =>
-        prev.map((s) => (s.id === studentId ? { ...s, status } : s))
-      );
-      await fetchStudents();
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "An error occurred");
-    } finally {
-      setMarkingId(null);
-    }
-  }, [sessionId, fetchStudents]);
+    },
+    [sessionId, fetchStudents]
+  );
 
   const handlePrintQR = useCallback(() => {
     if (!qrDataUrl) return;
@@ -225,8 +223,9 @@ export default function LiveSessionClient({
   const refreshSecs = Math.ceil(refreshMsLeft / 1000);
   const timerPercent = (refreshMsLeft / 5000) * 100;
 
-  const unmarkedCount = students.filter((s) => !s.status).length;
-  const markedCount = students.length - unmarkedCount;
+  const presentCount = students?.filter((s) => s.status === "PRESENT").length ?? 0;
+  const absentCount = students?.filter((s) => s.status === "ABSENT").length ?? 0;
+  const totalCount = students?.length ?? 0;
 
   return (
     <div className="flex flex-col items-center">
@@ -290,33 +289,20 @@ export default function LiveSessionClient({
             </button>
           )}
 
-          {/* Mini counts below QR */}
+          {/* Counts below QR */}
           <div className="flex items-center gap-5 mt-3">
-            {attendance ? (
-              <>
-                <div className="text-center">
-                  <p className="text-xl font-semibold text-green-500">{attendance.present}</p>
-                  <p className="text-xs text-muted">Present</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-xl font-semibold text-red-500">{attendance.absent}</p>
-                  <p className="text-xs text-muted">Absent</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-xl font-semibold text-ink">{attendance.total}</p>
-                  <p className="text-xs text-muted">Total</p>
-                </div>
-              </>
-            ) : (
-              <div className="flex gap-5">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="text-center">
-                    <div className="w-10 h-7 rounded bg-slate-200 animate-pulse mx-auto" />
-                    <div className="w-8 h-3 rounded bg-slate-100 animate-pulse mx-auto mt-1" />
-                  </div>
-                ))}
-              </div>
-            )}
+            <div className="text-center">
+              <p className="text-xl font-semibold text-green-500">{presentCount}</p>
+              <p className="text-xs text-muted">Present</p>
+            </div>
+            <div className="text-center">
+              <p className="text-xl font-semibold text-red-500">{absentCount}</p>
+              <p className="text-xs text-muted">Absent</p>
+            </div>
+            <div className="text-center">
+              <p className="text-xl font-semibold text-ink">{totalCount}</p>
+              <p className="text-xs text-muted">Total</p>
+            </div>
           </div>
         </div>
 
@@ -329,80 +315,26 @@ export default function LiveSessionClient({
                 Student Roster
               </span>
               <span className="text-xs text-slate-500 font-medium">
-                {markedCount}/{students.length} Scanned
+                {presentCount}/{totalCount} Present
               </span>
             </div>
 
-            {/* Roster Filter Tabs */}
-            <div className="flex border-b border-slate-200 bg-white text-xs font-medium">
-              <button
-                onClick={() => setRosterTab("pending")}
-                className={`flex-1 py-2 px-3 text-center border-b-2 transition-colors ${
-                  rosterTab === "pending"
-                    ? "border-amber-500 text-amber-700 font-semibold bg-amber-50/50"
-                    : "border-transparent text-slate-500 hover:text-slate-700"
-                }`}
-              >
-                Awaiting Scan ({unmarkedCount})
-              </button>
-              <button
-                onClick={() => setRosterTab("present")}
-                className={`flex-1 py-2 px-3 text-center border-b-2 transition-colors ${
-                  rosterTab === "present"
-                    ? "border-green-600 text-green-700 font-semibold bg-green-50/50"
-                    : "border-transparent text-slate-500 hover:text-slate-700"
-                }`}
-              >
-                Scanned ({markedCount})
-              </button>
-              <button
-                onClick={() => setRosterTab("all")}
-                className={`flex-1 py-2 px-3 text-center border-b-2 transition-colors ${
-                  rosterTab === "all"
-                    ? "border-primary text-primary font-semibold bg-primary/5"
-                    : "border-transparent text-slate-500 hover:text-slate-700"
-                }`}
-              >
-                All ({students.length})
-              </button>
-            </div>
-
             {/* Roster List */}
-            <div className="max-h-[380px] overflow-y-auto divide-y divide-slate-100">
-              {(() => {
-                const filteredStudents = students.filter((s) => {
-                  if (rosterTab === "pending") return !s.status;
-                  if (rosterTab === "present") return !!s.status;
-                  return true;
-                });
-
-                if (students.length === 0) {
-                  return (
-                    <div className="px-4 py-8 text-center text-sm text-slate-500">
-                      Loading students...
-                    </div>
-                  );
-                }
-
-                if (filteredStudents.length === 0) {
-                  return (
-                    <div className="px-4 py-8 text-center text-sm text-slate-500">
-                      {rosterTab === "pending" ? (
-                        <p className="text-green-600 font-medium">
-                          🎉 All students have scanned! No pending students.
-                        </p>
-                      ) : rosterTab === "present" ? (
-                        <p className="text-slate-400">No students scanned yet.</p>
-                      ) : (
-                        <p className="text-slate-400">No students found.</p>
-                      )}
-                    </div>
-                  );
-                }
-
-                return filteredStudents.map((student) => {
-                  const isMarked = !!student.status;
+            <div className="max-h-[400px] overflow-y-auto divide-y divide-slate-100">
+              {students === null ? (
+                <div className="px-4 py-8 text-center text-sm text-slate-500">
+                  <div className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin mx-auto mb-2" />
+                  Loading students...
+                </div>
+              ) : students.length === 0 ? (
+                <div className="px-4 py-8 text-center text-sm text-slate-400">
+                  No students found.
+                </div>
+              ) : (
+                students.map((student) => {
                   const isMarking = markingId === student.id;
+                  const status = student.status;
+
                   return (
                     <div key={student.id} className="flex items-center gap-3 px-4 py-2.5">
                       <div className="flex-1 min-w-0">
@@ -414,46 +346,39 @@ export default function LiveSessionClient({
                         </p>
                       </div>
 
-                      {isMarked ? (
-                        <span
-                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                            student.status === "PRESENT"
-                              ? "bg-green-50 text-green-700 border border-green-200"
-                              : student.status === "LATE"
-                              ? "bg-amber-50 text-amber-700 border border-amber-200"
-                              : "bg-red-50 text-red-700 border border-red-200"
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {/* Present button — highlight if already present */}
+                        <button
+                          onClick={() => handleMarkStudent(student.id, "PRESENT")}
+                          disabled={isMarking}
+                          className={`rounded px-2 py-1 text-xs font-medium transition-colors disabled:opacity-50 ${
+                            status === "PRESENT"
+                              ? "bg-green-600 text-white ring-2 ring-green-400"
+                              : "bg-green-50 text-green-700 border border-green-300 hover:bg-green-100"
                           }`}
+                          title="Mark Present"
                         >
-                          {student.status === "PRESENT"
-                            ? "✓ Scanned"
-                            : student.status === "LATE"
-                            ? "Late"
-                            : "Absent"}
-                        </span>
-                      ) : (
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            onClick={() => handleMarkStudent(student.id, "PRESENT")}
-                            disabled={isMarking}
-                            className="rounded bg-green-600 px-2 py-1 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
-                            title="Manually mark Present"
-                          >
-                            {isMarking ? "..." : "+ Present"}
-                          </button>
-                          <button
-                            onClick={() => handleMarkStudent(student.id, "ABSENT")}
-                            disabled={isMarking}
-                            className="rounded bg-red-600 px-2 py-1 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50 transition-colors"
-                            title="Manually mark Absent"
-                          >
-                            {isMarking ? "..." : "+ Absent"}
-                          </button>
-                        </div>
-                      )}
+                          {isMarking ? "..." : "Present"}
+                        </button>
+
+                        {/* Absent button — highlight if already absent */}
+                        <button
+                          onClick={() => handleMarkStudent(student.id, "ABSENT")}
+                          disabled={isMarking}
+                          className={`rounded px-2 py-1 text-xs font-medium transition-colors disabled:opacity-50 ${
+                            status === "ABSENT"
+                              ? "bg-red-600 text-white ring-2 ring-red-400"
+                              : "bg-red-50 text-red-700 border border-red-300 hover:bg-red-100"
+                          }`}
+                          title="Mark Absent"
+                        >
+                          {isMarking ? "..." : "Absent"}
+                        </button>
+                      </div>
                     </div>
                   );
-                });
-              })()}
+                })
+              )}
             </div>
           </div>
         </div>

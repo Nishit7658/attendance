@@ -8,12 +8,12 @@ export async function GET(
 ) {
   try {
     const authSession = await auth();
-    if (!authsession?.user?.id) {
+    if (!authSession?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const user = await prisma.user.findUnique({
-      where: { email: authSession.user.email },
+      where: { id: authSession.user.id },
       select: { id: true, role: true },
     });
     if (!user || !["FACULTY", "HOD", "ADMIN"].includes(user.role)) {
@@ -34,7 +34,7 @@ export async function GET(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Fetch all students enrolled in the same division/course, with attendance records
+    // Fetch all students with their attendance records for this session
     const [students, records] = await Promise.all([
       prisma.user.findMany({
         where: { role: "STUDENT" },
@@ -52,7 +52,6 @@ export async function GET(
     const studentsWithStatus = students.map((s) => ({
       id: s.id,
       name: s.name,
-      // Show enrollment number as the roll number, fall back to email
       rollNo: s.enrollmentNo ?? s.email,
       status: recordMap.get(s.id) ?? null,
     }));

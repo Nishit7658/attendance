@@ -7,12 +7,12 @@ export async function GET(
   { params }: { params: { id: string } },
 ) {
   const userSession = await auth();
-  if (!usersession?.user?.id) {
+  if (!userSession?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const currentUser = await prisma.user.findUnique({
-    where: { email: userSession.user.email },
+    where: { id: userSession.user.id },
   });
 
   if (!currentUser || !["FACULTY", "HOD", "ADMIN"].includes(currentUser.role)) {
