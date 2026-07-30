@@ -20,6 +20,12 @@ export default function QRScanner() {
   const [courseName, setCourseName] = useState("");
   const [retryKey, setRetryKey] = useState(0);
 
+  const [zoom, setZoom] = useState(1);
+  const [minZoom, setMinZoom] = useState(1);
+  const [maxZoom, setMaxZoom] = useState(4);
+  const [hasNativeZoom, setHasNativeZoom] = useState(false);
+  const [focusPoint, setFocusPoint] = useState<{ x: number; y: number } | null>(null);
+
   function cleanup() {
     activeRef.current = false;
     if (intervalRef.current !== null) {
@@ -48,7 +54,11 @@ export default function QRScanner() {
       let stream: MediaStream;
       try {
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "environment" },
+          video: {
+            facingMode: "environment",
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
         });
       } catch {
         stream = await navigator.mediaDevices.getUserMedia({
@@ -60,13 +70,29 @@ export default function QRScanner() {
 
       streamRef.current = stream;
 
-      stream.getTracks().forEach((track) => {
+      const track = stream.getVideoTracks()[0];
+      if (track) {
         track.onended = () => {
           if (!activeRef.current) return;
           setErrorMessage("Camera access was lost.");
           setState("error");
         };
-      });
+
+        // Initialize focus and zoom capabilities if supported
+        try {
+          const capabilities = (track.getCapabilities?.() || {}) as any;
+          if (capabilities.zoom) {
+            setHasNativeZoom(true);
+            setMinZoom(capabilities.zoom.min || 1);
+            setMaxZoom(Math.min(capabilities.zoom.max || 4, 8));
+          }
+          if (capabilities.focusMode?.includes("continuous")) {
+            track.applyConstraints({ advanced: [{ focusMode: "continuous" } as any] }).catch(() => {});
+          }
+        } catch {
+          // ignore constraint errors
+        }
+      }
 
       if (!activeRef.current) { cleanup(); return; }
 
@@ -91,6 +117,52 @@ export default function QRScanner() {
     }
   }
 
+  function handleZoomChange(newZoom: number) {
+    const clamped = Math.max(minZoom, Math.min(maxZoom, newZoom));
+    setZoom(clamped);
+
+    const track = streamRef.current?.getVideoTracks()[0];
+    if (track) {
+      try {
+        const capabilities = (track.getCapabilities?.() || {}) as any;
+        if (capabilities.zoom) {
+          track.applyConstraints({ advanced: [{ zoom: clamped } as any] }).catch(() => {});
+        }
+      } catch {
+        // Fallback to digital CSS & canvas zoom
+      }
+    }
+  }
+
+  function handleTapToFocus(e: React.MouseEvent<HTMLDivElement>) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+    const y = (e.clientY - rect.top) / rect.height;
+
+    setFocusPoint({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+    setTimeout(() => setFocusPoint(null), 1000);
+
+    const track = streamRef.current?.getVideoTracks()[0];
+    if (track) {
+      try {
+        const capabilities = (track.getCapabilities?.() || {}) as any;
+        const advanced: any[] = [];
+        if (capabilities.focusMode?.includes("single-shot")) {
+          advanced.push({ focusMode: "single-shot", pointsOfInterest: [{ x, y }] });
+        } else if (capabilities.focusMode?.includes("manual")) {
+          advanced.push({ focusMode: "manual", pointsOfInterest: [{ x, y }] });
+        } else if (capabilities.focusMode?.includes("continuous")) {
+          advanced.push({ focusMode: "continuous" });
+        }
+        if (advanced.length > 0) {
+          track.applyConstraints({ advanced }).catch(() => {});
+        }
+      } catch {
+        // ignore
+      }
+    }
+  }
+
   function scan() {
     const video = videoRef.current;
     const canvas = canvasRef.current;
@@ -100,7 +172,17 @@ export default function QRScanner() {
     if (!ctx) return;
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    if (!hasNativeZoom && zoom > 1) {
+      const cropW = video.videoWidth / zoom;
+      const cropH = video.videoHeight / zoom;
+      const cropX = (video.videoWidth - cropW) / 2;
+      const cropY = (video.videoHeight - cropH) / 2;
+      ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, canvas.width, canvas.height);
+    } else {
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    }
+
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const code = jsQR(imageData.data, imageData.width, imageData.height);
     if (code?.data) {
@@ -181,6 +263,7 @@ export default function QRScanner() {
     setErrorMessage("");
     setSuccessMessage("");
     setCourseName("");
+    setZoom(1);
     setRetryKey((k) => k + 1);
   }
 
@@ -196,26 +279,79 @@ export default function QRScanner() {
       )}
 
       {state === "scanning" && (
-        <div className="relative overflow-hidden rounded-lg bg-black min-h-[280px] flex items-center justify-center">
-          <video
-            ref={videoRef}
-            className="w-full h-full min-h-[280px] object-cover"
-            autoPlay
-            playsInline
-            muted
-          />
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <div className="relative aspect-square w-3/4 max-w-[260px]">
-              <div className="absolute inset-0 shadow-[0_0_0_999px_rgba(0,0,0,0.45)]" />
-              <div className="absolute left-0 top-0 h-8 w-8 rounded-tl-lg border-l-2 border-t-2 border-navy-400" />
-              <div className="absolute right-0 top-0 h-8 w-8 rounded-tr-lg border-r-2 border-t-2 border-navy-400" />
-              <div className="absolute bottom-0 left-0 h-8 w-8 rounded-bl-lg border-l-2 border-b-2 border-navy-400" />
-              <div className="absolute bottom-0 right-0 h-8 w-8 rounded-br-lg border-r-2 border-b-2 border-navy-400" />
+        <div className="flex flex-col gap-3">
+          <div
+            onClick={handleTapToFocus}
+            className="relative overflow-hidden rounded-lg bg-black min-h-[280px] flex items-center justify-center cursor-pointer select-none"
+          >
+            <video
+              ref={videoRef}
+              className="w-full h-full min-h-[280px] object-cover transition-transform duration-200"
+              style={{
+                transform: !hasNativeZoom && zoom > 1 ? `scale(${zoom})` : "none",
+              }}
+              autoPlay
+              playsInline
+              muted
+            />
+
+            {/* Tap Focus Ring Animation */}
+            {focusPoint && (
+              <div
+                className="pointer-events-none absolute h-12 w-12 rounded-full border-2 border-yellow-400 animate-ping -translate-x-1/2 -translate-y-1/2"
+                style={{ left: focusPoint.x, top: focusPoint.y }}
+              />
+            )}
+
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+              <div className="relative aspect-square w-3/4 max-w-[260px]">
+                <div className="absolute inset-0 shadow-[0_0_0_999px_rgba(0,0,0,0.45)]" />
+                <div className="absolute left-0 top-0 h-8 w-8 rounded-tl-lg border-l-2 border-t-2 border-navy-400" />
+                <div className="absolute right-0 top-0 h-8 w-8 rounded-tr-lg border-r-2 border-t-2 border-navy-400" />
+                <div className="absolute bottom-0 left-0 h-8 w-8 rounded-bl-lg border-l-2 border-b-2 border-navy-400" />
+                <div className="absolute bottom-0 right-0 h-8 w-8 rounded-br-lg border-r-2 border-b-2 border-navy-400" />
+              </div>
+            </div>
+
+            <p className="absolute bottom-3 left-0 right-0 text-center text-xs text-white/80 font-medium drop-shadow">
+              Tap screen to focus • Point at QR code
+            </p>
+          </div>
+
+          {/* Zoom Controls */}
+          <div className="flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <div className="flex items-center justify-between text-xs font-medium text-slate-700">
+              <span>Zoom</span>
+              <span className="text-navy-600 font-semibold">{zoom.toFixed(1)}x</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="range"
+                min={minZoom}
+                max={maxZoom}
+                step={0.1}
+                value={zoom}
+                onChange={(e) => handleZoomChange(parseFloat(e.target.value))}
+                className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-navy-600"
+              />
+            </div>
+            <div className="flex items-center justify-center gap-2 pt-1">
+              {[1, 1.5, 2, 3].map((z) => (
+                <button
+                  key={z}
+                  type="button"
+                  onClick={() => handleZoomChange(z)}
+                  className={`px-2.5 py-1 text-xs font-medium rounded transition-colors ${
+                    Math.abs(zoom - z) < 0.1
+                      ? "bg-navy-600 text-white"
+                      : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
+                  }`}
+                >
+                  {z}x
+                </button>
+              ))}
             </div>
           </div>
-          <p className="absolute bottom-3 left-0 right-0 text-center text-xs text-white/80 font-medium drop-shadow">
-            Point camera at QR code
-          </p>
         </div>
       )}
 
