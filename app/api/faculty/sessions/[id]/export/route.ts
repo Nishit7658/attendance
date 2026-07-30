@@ -23,11 +23,7 @@ export async function GET(
     where: { id: params.id },
     include: {
       course: true,
-      attendanceRecords: {
-        include: {
-          editLogs: { orderBy: { editedAt: "desc" }, take: 1 },
-        },
-      },
+      attendanceRecords: true,
     },
   });
 
@@ -39,27 +35,36 @@ export async function GET(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const studentIds = dbSession.attendanceRecords.map((r) => r.studentId);
-  const students = await prisma.user.findMany({
-    where: { id: { in: studentIds } },
+  // Build a map of studentId -> record status
+  const recordMap = new Map(
+    dbSession.attendanceRecords.map((r) => [r.studentId, { status: r.status, markedAt: r.markedAt }])
+  );
+
+  // Get ALL students so the export is complete (not just those marked)
+  const allStudents = await prisma.user.findMany({
+    where: { role: "STUDENT" },
     select: { id: true, name: true, email: true, enrollmentNo: true },
+    orderBy: { name: "asc" },
   });
-  const studentMap = new Map(students.map((s) => [s.id, s]));
 
   const escapeCsv = (v: string) => `"${v.replace(/"/g, '""')}"`;
 
-  const rows = dbSession.attendanceRecords.map((record) => {
-    const stu = studentMap.get(record.studentId);
+  const header = ["Enrollment No", "Student Name", "Email", "Status", "Marked At"];
+
+  const rows = allStudents.map((stu) => {
+    const record = recordMap.get(stu.id);
     return [
-      escapeCsv(stu?.enrollmentNo ?? "N/A"),
-      escapeCsv(stu?.name ?? "Unknown Student"),
-      escapeCsv(stu?.email ?? record.studentId),
-      record.status,
-      record.markedAt.toLocaleString("en-US"),
+      escapeCsv(stu.enrollmentNo ?? "N/A"),
+      escapeCsv(stu.name ?? "Unknown"),
+      escapeCsv(stu.email ?? ""),
+      record ? record.status : "ABSENT",
+      record ? record.markedAt.toLocaleString("en-IN") : "—",
     ];
   });
 
-  const header = ["Enrollment No", "Student Name", "Email", "Status", "Marked At"];
+  const sessionDate = new Date(dbSession.date).toLocaleDateString("en-IN");
+  const fileName = `attendance-${dbSession.course.code}-${sessionDate.replace(/\//g, "-")}.csv`;
+
   const bom = "\uFEFF";
   const csv = bom + [header.join(","), ...rows.map((r) => r.join(","))].join("\r\n");
 
@@ -67,7 +72,7 @@ export async function GET(
     status: 200,
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="attendance-${params.id}.csv"`,
+      "Content-Disposition": `attachment; filename="${fileName}"`,
     },
   });
 }

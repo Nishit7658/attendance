@@ -101,12 +101,12 @@ export async function updateAttendance(
   studentId: string,
   status: string,
   facultyId: string,
-  reason?: string
+  reason?: string,
+  bypassOwnerCheck?: boolean
 ) {
   const session = await prisma.session.findUnique({ where: { id: sessionId } });
   if (!session) throw new Error("Session not found");
-  if (session.facultyId !== facultyId) throw new Error("Unauthorized");
-  if (session.status !== "ACTIVE") throw new Error("Session is not active");
+  if (!bypassOwnerCheck && session.facultyId !== facultyId) throw new Error("Unauthorized");
 
   if (!["PRESENT", "ABSENT", "LATE"].includes(status)) {
     throw new Error("Invalid attendance status");

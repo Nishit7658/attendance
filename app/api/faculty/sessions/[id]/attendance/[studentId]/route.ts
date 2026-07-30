@@ -33,7 +33,9 @@ export async function PATCH(
       params.id,
       params.studentId,
       status,
-      user.id
+      user.id,
+      undefined,
+      user.role !== "FACULTY" // HOD and ADMIN can mark any session
     );
 
     const stu = await prisma.user.findUnique({

@@ -59,7 +59,7 @@ export default async function SessionSummaryPage({ params }: SummaryPageProps) {
 
   const allStudents = await prisma.user.findMany({
     where: { role: "STUDENT" },
-    select: { id: true, name: true, email: true },
+    select: { id: true, name: true, email: true, enrollmentNo: true },
   });
   const studentMap = new Map(allStudents.map((s) => [s.id, s]));
 
@@ -86,7 +86,7 @@ export default async function SessionSummaryPage({ params }: SummaryPageProps) {
     const stu = studentMap.get(record.studentId);
     return {
       id: record.studentId,
-      rollNo: stu?.email ?? record.studentId,
+      rollNo: stu?.enrollmentNo ?? stu?.email ?? record.studentId,
       name: stu?.name ?? "Unknown Student",
       status: record.status as StudentRow["status"],
       attendanceRecordId: record.id,
