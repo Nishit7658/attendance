@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import QRCode from "qrcode";
+import { Maximize2, X } from "lucide-react";
 
 interface LiveSessionClientProps {
   sessionId: string;
@@ -38,6 +39,7 @@ export default function LiveSessionClient({
   const router = useRouter();
   const [_tokenData, setTokenData] = useState<TokenData | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [isFullScreen, setIsFullScreen] = useState(false);
   const [attendance, setAttendance] = useState<AttendanceData | null>(null);
   const [students, setStudents] = useState<StudentStatus[] | null>(null);
   const [connected, setConnected] = useState(true);
@@ -90,7 +92,7 @@ export default function LiveSessionClient({
         setTokenData(data);
         setNextRefresh(Date.now() + 5000);
         QRCode.toDataURL(data.token, {
-          width: 256,
+          width: 512,
           margin: 1,
           color: { dark: "#1e293b", light: "#ffffff" },
         }).then(setQrDataUrl);
@@ -151,6 +153,26 @@ export default function LiveSessionClient({
       eventSourceRef.current?.close();
     };
   }, [connect, fetchStudents]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsFullScreen(false);
+      }
+    };
+
+    if (isFullScreen) {
+      window.addEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "";
+    };
+  }, [isFullScreen]);
 
   const handleEndSession = useCallback(async () => {
     setEnding(true);
@@ -249,16 +271,25 @@ export default function LiveSessionClient({
         <div className="flex flex-col items-center mx-auto lg:mx-0">
           <div className="relative mb-2">
             {qrDataUrl ? (
-              <div className="rounded border border-border p-3 bg-white max-w-[286px]">
+              <div
+                onClick={() => setIsFullScreen(true)}
+                className="group relative rounded-lg border border-slate-200 p-3 bg-white max-w-[286px] cursor-pointer hover:border-slate-400 hover:ring-2 hover:ring-slate-400/20 hover:shadow-md transition-all duration-200"
+                title="Click to open full page view"
+              >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   ref={qrImgRef}
                   src={qrDataUrl}
-                  alt="Session QR Code"
+                  alt="Session QR Code (Click for Full Screen)"
                   className="block w-full h-auto max-w-[256px]"
                   width={256}
                   height={256}
                 />
+                {/* Hover overlay hint */}
+                <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex flex-col items-center justify-center text-white text-xs font-medium gap-2 p-2 backdrop-blur-[1px]">
+                  <Maximize2 className="w-6 h-6 text-white" />
+                  <span>Click for Full Screen</span>
+                </div>
               </div>
             ) : (
               <div className="w-[220px] h-[220px] sm:w-[286px] sm:h-[286px] rounded border border-border bg-surface flex items-center justify-center">
@@ -278,15 +309,26 @@ export default function LiveSessionClient({
             </div>
           </div>
 
-          {/* Print QR button */}
+          {/* QR Action buttons */}
           {qrDataUrl && (
-            <button
-              onClick={handlePrintQR}
-              className="mt-2 text-xs text-navy-600 hover:text-navy-800 underline transition-colors"
-              title="Print QR code for classroom projection"
-            >
-              Print QR
-            </button>
+            <div className="mt-1 flex items-center gap-3">
+              <button
+                onClick={() => setIsFullScreen(true)}
+                className="text-xs text-navy-600 hover:text-navy-800 font-medium inline-flex items-center gap-1 transition-colors"
+                title="Open full page view for classroom projection"
+              >
+                <Maximize2 className="w-3.5 h-3.5" />
+                Full Screen
+              </button>
+              <span className="text-slate-300">•</span>
+              <button
+                onClick={handlePrintQR}
+                className="text-xs text-navy-600 hover:text-navy-800 underline transition-colors"
+                title="Print QR code for classroom projection"
+              >
+                Print QR
+              </button>
+            </div>
           )}
 
           {/* Counts below QR */}
@@ -414,6 +456,94 @@ export default function LiveSessionClient({
         >
           End Session
         </button>
+      )}
+
+      {/* Full Screen QR Modal Overlay */}
+      {isFullScreen && qrDataUrl && (
+        <div
+          className="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex flex-col justify-between p-4 sm:p-8 animate-in fade-in duration-200"
+          onClick={() => setIsFullScreen(false)}
+        >
+          {/* Overlay Header */}
+          <div
+            className="flex items-center justify-between w-full max-w-6xl mx-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3">
+              <span className="relative flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+              </span>
+              <div>
+                <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight">
+                  {courseName}
+                </h2>
+                <p className="text-xs sm:text-sm text-slate-400">
+                  {courseCode} • Live Attendance Session
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setIsFullScreen(false)}
+              className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-slate-800/90 hover:bg-slate-700 text-slate-200 hover:text-white transition-colors text-xs sm:text-sm font-medium border border-slate-700"
+              title="Close full screen (Esc)"
+            >
+              <X className="w-4 h-4" />
+              <span>Close (Esc)</span>
+            </button>
+          </div>
+
+          {/* Center QR Display */}
+          <div
+            className="flex-1 flex flex-col items-center justify-center my-4 min-h-0"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-2xl border border-slate-700 flex items-center justify-center max-w-[90vw] max-h-[60vh] aspect-square">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={qrDataUrl}
+                alt="Session QR Code Full Screen"
+                className="w-full h-full max-w-[500px] max-h-[500px] object-contain"
+                style={{ imageRendering: "pixelated" }}
+              />
+            </div>
+
+            {/* Refresh Progress Bar */}
+            <div className="w-full max-w-sm mt-6 flex flex-col items-center gap-2">
+              <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden border border-slate-700">
+                <div
+                  className="h-full bg-emerald-500 transition-all duration-100 ease-linear"
+                  style={{ width: `${timerPercent}%` }}
+                />
+              </div>
+              <p className="text-xs text-slate-400 font-mono">
+                Rotates in {refreshSecs}s • Point camera at QR code
+              </p>
+            </div>
+          </div>
+
+          {/* Overlay Footer Roster Summary */}
+          <div
+            className="w-full max-w-xl mx-auto bg-slate-900/80 rounded-xl border border-slate-800 p-4 flex items-center justify-around text-center shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div>
+              <p className="text-2xl sm:text-3xl font-bold text-emerald-400">{presentCount}</p>
+              <p className="text-xs text-slate-400 font-medium uppercase tracking-wider mt-0.5">Present</p>
+            </div>
+            <div className="h-8 w-px bg-slate-800" />
+            <div>
+              <p className="text-2xl sm:text-3xl font-bold text-rose-400">{absentCount}</p>
+              <p className="text-xs text-slate-400 font-medium uppercase tracking-wider mt-0.5">Absent</p>
+            </div>
+            <div className="h-8 w-px bg-slate-800" />
+            <div>
+              <p className="text-2xl sm:text-3xl font-bold text-slate-100">{totalCount}</p>
+              <p className="text-xs text-slate-400 font-medium uppercase tracking-wider mt-0.5">Total Enrolled</p>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
