@@ -18,9 +18,47 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const { token } = await request.json();
+    const { token, deviceId } = await request.json();
     if (!token || typeof token !== "string") {
       return NextResponse.json({ error: "Token is required" }, { status: 400 });
+    }
+
+    if (deviceId && typeof deviceId === "string") {
+      // 1. Prevent one phone from being used by multiple students
+      const otherStudent = await prisma.user.findFirst({
+        where: {
+          role: "STUDENT",
+          deviceId: deviceId,
+          id: { not: user.id },
+        },
+      });
+      if (otherStudent) {
+        return NextResponse.json(
+          { error: "Proxy Blocked: This phone is registered to another student." },
+          { status: 403 }
+        );
+      }
+
+      // 2. Check if student's account is locked to a different phone
+      const studentObj = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { deviceId: true },
+      });
+
+      if (studentObj?.deviceId && studentObj.deviceId !== deviceId) {
+        return NextResponse.json(
+          { error: "Proxy Blocked: Your account is bound to your registered phone." },
+          { status: 403 }
+        );
+      }
+
+      // 3. First time scan: bind deviceId to student
+      if (!studentObj?.deviceId) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { deviceId },
+        });
+      }
     }
 
     let payload: { sessionId: string };

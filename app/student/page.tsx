@@ -4,6 +4,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Badge } from "@/components/ui/Badge";
 
+import ChangePasswordModal from "@/components/student/ChangePasswordModal";
+
 export default async function StudentDashboardPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
@@ -65,13 +67,21 @@ export default async function StudentDashboardPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-navy-900">My Attendance</h1>
-        <Link
-          href="/student/timetable"
-          className="text-xs text-navy-600 hover:text-navy-800 underline transition-colors"
-        >
-          View timetable
-        </Link>
+        <div>
+          <h1 className="text-2xl font-bold text-navy-900">My Attendance</h1>
+          <p className="text-xs text-slate-500 mt-0.5 font-mono">
+            Device Bound: {currentUser.deviceId ? "🔒 Protected" : "🔓 Will lock on 1st scan"}
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <ChangePasswordModal />
+          <Link
+            href="/student/timetable"
+            className="text-xs text-navy-600 hover:text-navy-800 underline transition-colors"
+          >
+            View timetable
+          </Link>
+        </div>
       </div>
       <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
         {stats.map((stat) => (
