@@ -62,6 +62,33 @@ export async function endSession(sessionId: string, facultyId: string) {
   if (session.facultyId !== facultyId) throw new Error("Unauthorized");
   if (session.status !== "ACTIVE") throw new Error("Session is not active");
 
+  // Find all students who already have a record for this session
+  const existingRecords = await prisma.attendanceRecord.findMany({
+    where: { sessionId },
+    select: { studentId: true },
+  });
+  const markedIds = new Set(existingRecords.map((r) => r.studentId));
+
+  // Find all students with no record → mark them ABSENT
+  const allStudents = await prisma.user.findMany({
+    where: { role: "STUDENT" },
+    select: { id: true },
+  });
+  const unmarked = allStudents.filter((s) => !markedIds.has(s.id));
+
+  // Bulk-create ABSENT records for all unmarked students
+  if (unmarked.length > 0) {
+    await prisma.attendanceRecord.createMany({
+      data: unmarked.map((s) => ({
+        sessionId,
+        studentId: s.id,
+        status: "ABSENT",
+        markedById: facultyId,
+      })),
+      skipDuplicates: true,
+    });
+  }
+
   return prisma.session.update({
     where: { id: sessionId },
     data: { status: "ENDED", endTime: new Date() },
