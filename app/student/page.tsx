@@ -48,6 +48,7 @@ export default async function StudentDashboardPage() {
   // Per-subject breakdown
   const subjectMap = new Map<string, { code: string; name: string; total: number; attended: number }>();
   for (const r of courseRecords) {
+    if (!r.session || !r.session.course) continue;
     const course = r.session.course;
     const key = course.id;
     if (!subjectMap.has(key)) {
@@ -137,23 +138,26 @@ export default async function StudentDashboardPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border bg-bg">
-              {todayRecords.map((record) => (
-                <tr key={record.id} className="hover:bg-surface-hover">
-                  <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-ink">
-                    {record.session.course.name}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm text-ink">
-                    {record.session.startTime
-                      ? new Date(record.session.startTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-                      : "—"}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm">
-                    <Badge variant={record.status === "PRESENT" ? "success" : record.status === "LATE" ? "warning" : "danger"}>
-                      {record.status}
-                    </Badge>
-                  </td>
-                </tr>
-              ))}
+              {todayRecords.map((record) => {
+                if (!record.session || !record.session.course) return null;
+                return (
+                  <tr key={record.id} className="hover:bg-surface-hover">
+                    <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-ink">
+                      {record.session.course.name}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-ink">
+                      {record.session.startTime
+                        ? new Date(record.session.startTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                        : "—"}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-sm">
+                      <Badge variant={record.status === "PRESENT" ? "success" : record.status === "LATE" ? "warning" : "danger"}>
+                        {record.status}
+                      </Badge>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
