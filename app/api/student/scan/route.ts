@@ -23,44 +23,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Token is required" }, { status: 400 });
     }
 
-    if (deviceId && typeof deviceId === "string") {
-      // 1. Prevent one phone from being used by multiple students
-      const otherStudent = await prisma.user.findFirst({
-        where: {
-          role: "STUDENT",
-          deviceId: deviceId,
-          id: { not: user.id },
-        },
-      });
-      if (otherStudent) {
-        return NextResponse.json(
-          { error: "Proxy Blocked: This phone is registered to another student." },
-          { status: 403 }
-        );
-      }
-
-      // 2. Check if student's account is locked to a different phone
-      const studentObj = await prisma.user.findUnique({
-        where: { id: user.id },
-        select: { deviceId: true },
-      });
-
-      if (studentObj?.deviceId && studentObj.deviceId !== deviceId) {
-        return NextResponse.json(
-          { error: "Proxy Blocked: Your account is bound to your registered phone." },
-          { status: 403 }
-        );
-      }
-
-      // 3. First time scan: bind deviceId to student
-      if (!studentObj?.deviceId) {
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { deviceId },
-        });
-      }
-    }
-
+    // Verify QR code token (NO LIMIT on scan count - unlimited scans allowed per valid token)
     let payload: { sessionId: string };
     try {
       payload = await verifyQrToken(token);
@@ -89,12 +52,63 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Already marked" }, { status: 409 });
     }
 
+    // Flagging & Proxy detection logic:
+    let isFlagged = false;
+    let flagReason: string | undefined = undefined;
+
+    if (deviceId && typeof deviceId === "string") {
+      // Check if this same physical device was ALREADY used by a DIFFERENT student in this session
+      const sameSessionDeviceRecord = await prisma.attendanceRecord.findFirst({
+        where: {
+          sessionId: session.id,
+          deviceId: deviceId,
+          studentId: { not: user.id },
+        },
+        include: { student: { select: { name: true } } },
+      });
+
+      if (sameSessionDeviceRecord) {
+        isFlagged = true;
+        flagReason = `Proxy Flag: Phone used by multiple students (${sameSessionDeviceRecord.student.name})`;
+      }
+
+      // Check if device is bound to another student's account
+      const otherStudent = await prisma.user.findFirst({
+        where: {
+          role: "STUDENT",
+          deviceId: deviceId,
+          id: { not: user.id },
+        },
+        select: { name: true },
+      });
+
+      if (otherStudent) {
+        isFlagged = true;
+        flagReason = `Proxy Flag: Phone registered to ${otherStudent.name}`;
+      }
+
+      // Bind deviceId to student user profile on first use
+      const studentObj = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { deviceId: true },
+      });
+      if (!studentObj?.deviceId) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { deviceId },
+        });
+      }
+    }
+
     const record = await prisma.attendanceRecord.create({
       data: {
         sessionId: session.id,
         studentId: user.id,
         status: "PRESENT",
         markedById: user.id,
+        deviceId: deviceId || null,
+        isFlagged,
+        flagReason,
       },
     });
 
@@ -102,8 +116,13 @@ export async function POST(request: NextRequest) {
       success: true,
       recordId: record.id,
       courseName: session.course.name,
+      isFlagged,
+      flagReason,
     });
   } catch (err: unknown) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Internal server error" },
+      { status: 500 }
+    );
   }
 }

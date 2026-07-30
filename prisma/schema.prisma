@@ -172,6 +172,9 @@ model AttendanceRecord {
   status     AttendanceStatus
   markedAt   DateTime         @default(now())
   markedById String
+  deviceId   String?
+  isFlagged  Boolean          @default(false)
+  flagReason String?
 
   session  Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   markedBy User    @relation("MarkedBy", fields: [markedById], references: [id])

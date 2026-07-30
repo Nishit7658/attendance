@@ -34,7 +34,7 @@ export async function GET(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Fetch all students with their attendance records for this session
+    // Fetch all students with their attendance records and flag status for this session
     const [students, records] = await Promise.all([
       prisma.user.findMany({
         where: { role: "STUDENT" },
@@ -43,18 +43,23 @@ export async function GET(
       }),
       prisma.attendanceRecord.findMany({
         where: { sessionId: params.id },
-        select: { studentId: true, status: true },
+        select: { studentId: true, status: true, isFlagged: true, flagReason: true },
       }),
     ]);
 
-    const recordMap = new Map(records.map((r) => [r.studentId, r.status]));
+    const recordMap = new Map(records.map((r) => [r.studentId, r]));
 
-    const studentsWithStatus = students.map((s) => ({
-      id: s.id,
-      name: s.name,
-      rollNo: s.enrollmentNo ?? s.email,
-      status: recordMap.get(s.id) ?? null,
-    }));
+    const studentsWithStatus = students.map((s) => {
+      const rec = recordMap.get(s.id);
+      return {
+        id: s.id,
+        name: s.name,
+        rollNo: s.enrollmentNo ?? s.email,
+        status: rec?.status ?? null,
+        isFlagged: rec?.isFlagged ?? false,
+        flagReason: rec?.flagReason ?? null,
+      };
+    });
 
     return NextResponse.json({ students: studentsWithStatus });
   } catch (err: unknown) {

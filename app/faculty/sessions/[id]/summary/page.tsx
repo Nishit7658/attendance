@@ -67,6 +67,8 @@ export default async function SessionSummaryPage({ params }: SummaryPageProps) {
     studentId: string;
     id: string;
     status: string;
+    isFlagged?: boolean;
+    flagReason?: string | null;
     editLogs: Array<{
       id: string;
       oldStatus: string;
@@ -90,6 +92,8 @@ export default async function SessionSummaryPage({ params }: SummaryPageProps) {
       name: stu?.name ?? "Unknown Student",
       status: record.status as StudentRow["status"],
       attendanceRecordId: record.id,
+      isFlagged: record.isFlagged ?? false,
+      flagReason: record.flagReason ?? null,
       editLogs: record.editLogs.map((log) => ({
         id: log.id,
         oldStatus: log.oldStatus,

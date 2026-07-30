@@ -27,6 +27,8 @@ interface StudentStatus {
   name: string;
   rollNo: string;
   status: string | null;
+  isFlagged?: boolean;
+  flagReason?: string | null;
 }
 
 type MarkStatus = "PRESENT" | "ABSENT" | "LATE";
@@ -246,7 +248,7 @@ export default function LiveSessionClient({
   const timerPercent = (refreshMsLeft / 5000) * 100;
 
   const presentCount = students?.filter((s) => s.status === "PRESENT").length ?? 0;
-  const absentCount = students?.filter((s) => s.status === "ABSENT").length ?? 0;
+  const absentCount = students ? students.filter((s) => s.status === "ABSENT" || s.status === null).length : 0;
   const totalCount = students?.length ?? 0;
 
   return (
@@ -384,11 +386,21 @@ export default function LiveSessionClient({
                   return (
                     <div key={student.id} className="flex items-center gap-3 px-4 py-2.5">
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-slate-900 truncate">
-                          {student.name}
-                        </p>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="text-sm font-medium text-slate-900 truncate">
+                            {student.name}
+                          </p>
+                          {student.isFlagged && (
+                            <span
+                              className="inline-flex items-center gap-1 text-[10px] font-bold text-red-700 bg-red-100 border border-red-300 px-1.5 py-0.5 rounded cursor-help"
+                              title={student.flagReason || "Proxy scan detected"}
+                            >
+                              ⚠️ Proxy Alert
+                            </span>
+                          )}
+                        </div>
                         <p className="text-xs text-slate-400 truncate">
-                          {student.rollNo}
+                          {student.rollNo} {student.isFlagged && student.flagReason ? `• ${student.flagReason}` : ""}
                         </p>
                       </div>
 

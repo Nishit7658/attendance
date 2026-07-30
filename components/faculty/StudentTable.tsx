@@ -23,6 +23,8 @@ export type StudentRow = {
   status: Status | null;
   attendanceRecordId: string | null;
   editLogs: EditLogEntry[];
+  isFlagged?: boolean;
+  flagReason?: string | null;
 };
 
 interface StudentTableProps {
@@ -136,7 +138,19 @@ export function StudentTable({ students, sessionId }: StudentTableProps) {
                 className={isExpanded ? "bg-slate-50" : undefined}
               >
                 <TableCell className="text-xs text-slate-400">{idx + 1}</TableCell>
-                <TableCell className="font-medium text-slate-900">{student.name}</TableCell>
+                <TableCell className="font-medium text-slate-900">
+                  <div className="flex items-center gap-2">
+                    <span>{student.name}</span>
+                    {student.isFlagged && (
+                      <span
+                        className="inline-flex items-center text-[10px] font-bold text-red-700 bg-red-100 border border-red-300 px-1.5 py-0.5 rounded cursor-help"
+                        title={student.flagReason || "Multi-account device detected"}
+                      >
+                        ⚠️ Proxy Alert
+                      </span>
+                    )}
+                  </div>
+                </TableCell>
                 <TableCell>{student.rollNo}</TableCell>
                 <TableCell>
                   <Badge variant={statusBadgeVariant(student.status)}>
