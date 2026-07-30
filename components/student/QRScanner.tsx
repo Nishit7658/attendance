@@ -102,7 +102,7 @@ export default function QRScanner() {
       intervalRef.current = window.setInterval(() => {
         if (stateRef.current !== "scanning" || !activeRef.current) return;
         scan();
-      }, 300);
+      }, 50);
     } catch (err: unknown) {
       if (!activeRef.current) return;
       if (err instanceof DOMException && err.name === "NotAllowedError") {
@@ -170,8 +170,25 @@ export default function QRScanner() {
     if (!video.videoWidth || !video.videoHeight) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+
+    // Downscale canvas to max 512px for instant 14x faster jsQR detection (like UPI scanners)
+    const MAX_DIM = 512;
+    let targetW = video.videoWidth;
+    let targetH = video.videoHeight;
+    if (targetW > MAX_DIM || targetH > MAX_DIM) {
+      if (targetW > targetH) {
+        targetH = Math.round((targetH * MAX_DIM) / targetW);
+        targetW = MAX_DIM;
+      } else {
+        targetW = Math.round((targetW * MAX_DIM) / targetH);
+        targetH = MAX_DIM;
+      }
+    }
+
+    if (canvas.width !== targetW || canvas.height !== targetH) {
+      canvas.width = targetW;
+      canvas.height = targetH;
+    }
 
     if (!hasNativeZoom && zoom > 1) {
       const cropW = video.videoWidth / zoom;
@@ -180,11 +197,13 @@ export default function QRScanner() {
       const cropY = (video.videoHeight - cropH) / 2;
       ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, canvas.width, canvas.height);
     } else {
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight, 0, 0, canvas.width, canvas.height);
     }
 
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const code = jsQR(imageData.data, imageData.width, imageData.height);
+    const code = jsQR(imageData.data, imageData.width, imageData.height, {
+      inversionAttempts: "dontInvert",
+    });
     if (code?.data) {
       handleScan(code.data);
     }
@@ -195,6 +214,15 @@ export default function QRScanner() {
     stateRef.current = "success";
     clearInterval(intervalRef.current!);
     intervalRef.current = null;
+
+    // Instant haptic feedback (vibration) like UPI apps
+    try {
+      if (typeof navigator !== "undefined" && navigator.vibrate) {
+        navigator.vibrate(100);
+      }
+    } catch {
+      // ignore
+    }
 
     setErrorMessage("");
     setSuccessMessage("");
