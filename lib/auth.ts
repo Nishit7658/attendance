@@ -24,9 +24,10 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
               { email: rawInput },
               { enrollmentNo: rawInput },
               { email: `${rawInput}@student` },
+              { email: `${rawInput}@faculty` },
+              { email: `${rawInput}@college.edu` },
               { email: `${rawInput}@student.college.edu` },
               { email: `${rawInput}.college.edu` },
-              { email: rawInput.includes("@") ? rawInput : `${rawInput}@faculty` },
             ],
           },
         })
