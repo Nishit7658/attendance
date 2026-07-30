@@ -271,16 +271,18 @@ export default function LiveSessionClient({
         <div className="flex flex-col items-center mx-auto lg:mx-0">
           <div className="relative mb-2">
             {qrDataUrl ? (
-              <div
-                onClick={() => setIsFullScreen(true)}
-                className="group relative rounded-lg border border-slate-200 p-3 bg-white max-w-[286px] cursor-pointer hover:border-slate-400 hover:ring-2 hover:ring-slate-400/20 hover:shadow-md transition-all duration-200"
-                title="Click to open full page view"
+              <a
+                href={`/faculty/sessions/${sessionId}/qr`}
+                target="_blank"
+                rel="noreferrer"
+                className="group relative block rounded-lg border border-slate-200 p-3 bg-white max-w-[286px] cursor-pointer hover:border-slate-400 hover:ring-2 hover:ring-slate-400/20 hover:shadow-md transition-all duration-200"
+                title="Click to open full page QR view in new tab"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   ref={qrImgRef}
                   src={qrDataUrl}
-                  alt="Session QR Code (Click for Full Screen)"
+                  alt="Session QR Code (Click for Full Page)"
                   className="block w-full h-auto max-w-[256px]"
                   width={256}
                   height={256}
@@ -288,9 +290,9 @@ export default function LiveSessionClient({
                 {/* Hover overlay hint */}
                 <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex flex-col items-center justify-center text-white text-xs font-medium gap-2 p-2 backdrop-blur-[1px]">
                   <Maximize2 className="w-6 h-6 text-white" />
-                  <span>Click for Full Screen</span>
+                  <span>Click for Full Page QR</span>
                 </div>
-              </div>
+              </a>
             ) : (
               <div className="w-[220px] h-[220px] sm:w-[286px] sm:h-[286px] rounded border border-border bg-surface flex items-center justify-center">
                 <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
@@ -312,14 +314,16 @@ export default function LiveSessionClient({
           {/* QR Action buttons */}
           {qrDataUrl && (
             <div className="mt-1 flex items-center gap-3">
-              <button
-                onClick={() => setIsFullScreen(true)}
+              <a
+                href={`/faculty/sessions/${sessionId}/qr`}
+                target="_blank"
+                rel="noreferrer"
                 className="text-xs text-navy-600 hover:text-navy-800 font-medium inline-flex items-center gap-1 transition-colors"
                 title="Open full page view for classroom projection"
               >
                 <Maximize2 className="w-3.5 h-3.5" />
-                Full Screen
-              </button>
+                Full Page QR
+              </a>
               <span className="text-slate-300">•</span>
               <button
                 onClick={handlePrintQR}
