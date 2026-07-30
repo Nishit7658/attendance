@@ -458,90 +458,33 @@ export default function LiveSessionClient({
         </button>
       )}
 
-      {/* Full Screen QR Modal Overlay */}
+      {/* Full Screen QR Modal Overlay - ONLY QR CODE */}
       {isFullScreen && qrDataUrl && (
         <div
-          className="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex flex-col justify-between p-4 sm:p-8 animate-in fade-in duration-200"
+          className="fixed inset-0 z-50 bg-black flex items-center justify-center p-4 sm:p-8 animate-in fade-in duration-150 cursor-pointer"
           onClick={() => setIsFullScreen(false)}
         >
-          {/* Overlay Header */}
-          <div
-            className="flex items-center justify-between w-full max-w-6xl mx-auto"
-            onClick={(e) => e.stopPropagation()}
+          {/* Subtle floating close button in top right */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsFullScreen(false);
+            }}
+            className="absolute top-4 right-4 z-10 p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-colors"
+            title="Close (Esc)"
           >
-            <div className="flex items-center gap-3">
-              <span className="relative flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-              </span>
-              <div>
-                <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight">
-                  {courseName}
-                </h2>
-                <p className="text-xs sm:text-sm text-slate-400">
-                  {courseCode} • Live Attendance Session
-                </p>
-              </div>
-            </div>
+            <X className="w-6 h-6" />
+          </button>
 
-            <button
-              onClick={() => setIsFullScreen(false)}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-slate-800/90 hover:bg-slate-700 text-slate-200 hover:text-white transition-colors text-xs sm:text-sm font-medium border border-slate-700"
-              title="Close full screen (Esc)"
-            >
-              <X className="w-4 h-4" />
-              <span>Close (Esc)</span>
-            </button>
-          </div>
-
-          {/* Center QR Display */}
-          <div
-            className="flex-1 flex flex-col items-center justify-center my-4 min-h-0"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-2xl border border-slate-700 flex items-center justify-center max-w-[90vw] max-h-[60vh] aspect-square">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={qrDataUrl}
-                alt="Session QR Code Full Screen"
-                className="w-full h-full max-w-[500px] max-h-[500px] object-contain"
-                style={{ imageRendering: "pixelated" }}
-              />
-            </div>
-
-            {/* Refresh Progress Bar */}
-            <div className="w-full max-w-sm mt-6 flex flex-col items-center gap-2">
-              <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden border border-slate-700">
-                <div
-                  className="h-full bg-emerald-500 transition-all duration-100 ease-linear"
-                  style={{ width: `${timerPercent}%` }}
-                />
-              </div>
-              <p className="text-xs text-slate-400 font-mono">
-                Rotates in {refreshSecs}s • Point camera at QR code
-              </p>
-            </div>
-          </div>
-
-          {/* Overlay Footer Roster Summary */}
-          <div
-            className="w-full max-w-xl mx-auto bg-slate-900/80 rounded-xl border border-slate-800 p-4 flex items-center justify-around text-center shadow-lg"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div>
-              <p className="text-2xl sm:text-3xl font-bold text-emerald-400">{presentCount}</p>
-              <p className="text-xs text-slate-400 font-medium uppercase tracking-wider mt-0.5">Present</p>
-            </div>
-            <div className="h-8 w-px bg-slate-800" />
-            <div>
-              <p className="text-2xl sm:text-3xl font-bold text-rose-400">{absentCount}</p>
-              <p className="text-xs text-slate-400 font-medium uppercase tracking-wider mt-0.5">Absent</p>
-            </div>
-            <div className="h-8 w-px bg-slate-800" />
-            <div>
-              <p className="text-2xl sm:text-3xl font-bold text-slate-100">{totalCount}</p>
-              <p className="text-xs text-slate-400 font-medium uppercase tracking-wider mt-0.5">Total Enrolled</p>
-            </div>
+          {/* Clean Big QR Code */}
+          <div className="bg-white p-4 sm:p-6 rounded-3xl shadow-2xl flex items-center justify-center max-w-[92vw] max-h-[92vh] aspect-square">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={qrDataUrl}
+              alt="Session QR Code Full Page"
+              className="w-full h-full max-w-[85vh] max-h-[85vh] object-contain"
+              style={{ imageRendering: "pixelated" }}
+            />
           </div>
         </div>
       )}
