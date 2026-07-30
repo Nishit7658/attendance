@@ -23,7 +23,11 @@ export async function GET(
   const session = await prisma.session.findUnique({
     where: { id: params.id },
   });
-  if (!session || session.facultyId !== user.id) {
+  if (!session) {
+    return new Response("Session not found", { status: 404 });
+  }
+  // Only FACULTY must own the session; HOD/Admin can view any session
+  if (user.role === "FACULTY" && session.facultyId !== user.id) {
     return new Response("Forbidden", { status: 403 });
   }
 

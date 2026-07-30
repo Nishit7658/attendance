@@ -21,7 +21,7 @@ export async function POST(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const session = await startSession(params.id, user.id);
+    const session = await startSession(params.id, user.id, user.role !== "FACULTY");
     return NextResponse.json({
       sessionId: session!.id,
       redirect: `/faculty/sessions/${session!.id}/live`,

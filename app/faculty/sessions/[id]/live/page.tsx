@@ -28,7 +28,7 @@ export default async function LiveSessionPage({ params }: LiveSessionPageProps) 
     redirect("/faculty/dashboard");
   }
 
-  if (session.facultyId !== user.id) {
+  if (user.role === "FACULTY" && session.facultyId !== user.id) {
     redirect("/faculty/dashboard");
   }
 

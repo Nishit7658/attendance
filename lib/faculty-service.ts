@@ -18,16 +18,19 @@ export async function getActiveSession(facultyId: string) {
   });
 }
 
-export async function startSession(timetableEntryId: string, facultyId: string) {
+export async function startSession(timetableEntryId: string, facultyId: string, bypassOwnerCheck?: boolean) {
   const entry = await prisma.timetableEntry.findUnique({
     where: { id: timetableEntryId },
     include: { course: true },
   });
   if (!entry) throw new Error("Timetable entry not found");
-  if (entry.facultyId !== facultyId) throw new Error("Unauthorized");
+  if (!bypassOwnerCheck && entry.facultyId !== facultyId) throw new Error("Unauthorized");
+
+  // Use the entry's assigned faculty for the session (not the HOD/Admin who clicked start)
+  const sessionFacultyId = bypassOwnerCheck ? entry.facultyId : facultyId;
 
   const existing = await prisma.session.findFirst({
-    where: { facultyId, status: "ACTIVE" },
+    where: { facultyId: sessionFacultyId, status: "ACTIVE" },
   });
   if (existing) throw new Error("An active session already exists");
 
@@ -36,7 +39,7 @@ export async function startSession(timetableEntryId: string, facultyId: string) 
       data: {
         timetableEntryId: entry.id,
         courseId: entry.courseId,
-        facultyId,
+        facultyId: sessionFacultyId,
         date: new Date(),
         startTime: new Date(),
         status: "ACTIVE",
@@ -56,10 +59,10 @@ export async function startSession(timetableEntryId: string, facultyId: string) 
   });
 }
 
-export async function endSession(sessionId: string, facultyId: string) {
+export async function endSession(sessionId: string, facultyId: string, bypassOwnerCheck?: boolean) {
   const session = await prisma.session.findUnique({ where: { id: sessionId } });
   if (!session) throw new Error("Session not found");
-  if (session.facultyId !== facultyId) throw new Error("Unauthorized");
+  if (!bypassOwnerCheck && session.facultyId !== facultyId) throw new Error("Unauthorized");
   if (session.status !== "ACTIVE") throw new Error("Session is not active");
 
   // Find all students who already have a record for this session

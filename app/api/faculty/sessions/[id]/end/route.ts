@@ -21,7 +21,7 @@ export async function POST(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    await endSession(params.id, user.id);
+    await endSession(params.id, user.id, user.role !== "FACULTY");
     return NextResponse.json({
       redirect: `/faculty/sessions/${params.id}/summary`,
     });
