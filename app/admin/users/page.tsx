@@ -66,7 +66,7 @@ export default async function AdminUsersPage() {
                 </TableCell>
                 <TableCell>{user.department || "—"}</TableCell>
                 <TableCell>
-                  <UserActions userId={user.id} />
+                  <UserActions userId={user.id} isStudent={user.role === "STUDENT"} />
                 </TableCell>
               </TableRow>
             ))}
