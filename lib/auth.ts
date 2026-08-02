@@ -17,17 +17,21 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
         if (!credentials?.email || !credentials?.password) return null
 
         const rawInput = (credentials.email as string).trim()
+        const lowerInput = rawInput.toLowerCase()
+        const cleanPrefix = lowerInput.replace(/@.*$/, "")
 
         const user = await prisma.user.findFirst({
           where: {
             OR: [
-              { email: rawInput },
-              { enrollmentNo: rawInput },
-              { email: `${rawInput}@student` },
-              { email: `${rawInput}@faculty` },
-              { email: `${rawInput}@college.edu` },
-              { email: `${rawInput}@student.college.edu` },
-              { email: `${rawInput}.college.edu` },
+              { email: { equals: rawInput, mode: "insensitive" } },
+              { email: { equals: lowerInput, mode: "insensitive" } },
+              { email: { equals: `${cleanPrefix}@student`, mode: "insensitive" } },
+              { email: { equals: `${cleanPrefix}@faculty`, mode: "insensitive" } },
+              { email: { equals: `${cleanPrefix}@college.edu`, mode: "insensitive" } },
+              { email: { equals: `${cleanPrefix}@student.college.edu`, mode: "insensitive" } },
+              { email: { equals: `${cleanPrefix}@faculty.college.edu`, mode: "insensitive" } },
+              { enrollmentNo: { equals: rawInput, mode: "insensitive" } },
+              { enrollmentNo: { equals: cleanPrefix, mode: "insensitive" } },
             ],
           },
         })
