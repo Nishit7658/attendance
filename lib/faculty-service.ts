@@ -4,10 +4,21 @@ import { generateQrToken } from "@/lib/qr-token";
 export async function getTodaySessions(facultyId: string) {
   const now = new Date();
   const dayOfWeek = now.getDay();
-  return prisma.timetableEntry.findMany({
+  const todayEntries = await prisma.timetableEntry.findMany({
     where: { facultyId, dayOfWeek },
     include: { course: true },
     orderBy: { startTime: "asc" },
+  });
+
+  if (todayEntries.length > 0) {
+    return todayEntries;
+  }
+
+  // Fallback: return all timetable entries assigned to this faculty so their dashboard is never empty
+  return prisma.timetableEntry.findMany({
+    where: { facultyId },
+    include: { course: true },
+    orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }],
   });
 }
 

@@ -59,24 +59,31 @@ export default async function FacultyDashboardPage() {
       )}
 
       {todaySessions.length > 0 ? (
-        <div className="rounded border border-border">
-          <div className="px-4 py-2 border-b border-border bg-surface">
-            <span className="text-xs font-medium text-muted uppercase tracking-wider">
-              Today&apos;s Sessions
-            </span>
+        <div className="space-y-6">
+          <div className="rounded border border-border">
+            <div className="px-4 py-2 border-b border-border bg-surface">
+              <span className="text-xs font-medium text-muted uppercase tracking-wider">
+                Scheduled Sessions
+              </span>
+            </div>
+            {todaySessions.map((entry) => (
+              <SessionCard
+                key={entry.id}
+                id={entry.id}
+                courseCode={entry.course.code}
+                courseName={entry.course.name}
+                startTime={entry.startTime.toISOString()}
+                endTime={entry.endTime.toISOString()}
+                room={entry.room}
+                section={entry.section || ""}
+              />
+            ))}
           </div>
-          {todaySessions.map((entry) => (
-            <SessionCard
-              key={entry.id}
-              id={entry.id}
-              courseCode={entry.course.code}
-              courseName={entry.course.name}
-              startTime={entry.startTime.toISOString()}
-              endTime={entry.endTime.toISOString()}
-              room={entry.room}
-              section={entry.section || ""}
-            />
-          ))}
+
+          <div className="rounded border border-border p-5 bg-surface/50">
+            <h3 className="text-sm font-semibold text-ink mb-2">Need to run an extra / ad-hoc class?</h3>
+            <AdHocForm />
+          </div>
         </div>
       ) : (
         <div className="rounded border border-border px-5 py-8 text-center">
