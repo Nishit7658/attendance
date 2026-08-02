@@ -1,13 +1,54 @@
 "use client";
 
-import { Button } from "@/components/ui/Button";
+import { useEffect } from "react";
+import Link from "next/link";
 
-export default function HODError({ reset }: { error: Error; reset: () => void }) {
+export default function HODError({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
+  useEffect(() => {
+    console.error("HOD Portal Error:", error);
+  }, [error]);
+
   return (
-    <div className="flex flex-col items-center justify-center py-20">
-      <h1 className="text-xl font-bold text-navy-900">Something went wrong</h1>
-      <p className="mt-2 text-sm text-slate-500">An unexpected error occurred in the HOD portal.</p>
-      <Button className="mt-6" onClick={reset}>Try again</Button>
+    <div className="flex min-h-[60vh] flex-col items-center justify-center text-center px-4">
+      <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-100">
+        <svg
+          className="h-7 w-7 text-red-600"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2}
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"
+          />
+        </svg>
+      </div>
+      <h2 className="text-xl font-bold text-slate-900 mb-2">HOD Dashboard Error</h2>
+      <p className="max-w-md text-sm text-slate-600 mb-6">
+        An error occurred while loading department data. Please try again.
+      </p>
+      <div className="flex items-center gap-3">
+        <button
+          onClick={reset}
+          className="rounded-lg bg-navy-600 px-4 py-2 text-sm font-medium text-white hover:bg-navy-700 transition-colors"
+        >
+          Retry
+        </button>
+        <Link
+          href="/hod"
+          className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+        >
+          HOD Dashboard
+        </Link>
+      </div>
     </div>
   );
 }
