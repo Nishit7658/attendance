@@ -13,6 +13,7 @@ export const authConfig = {
       if (user) {
         if (user.id) token.id = user.id
         if (user.role) token.role = user.role
+        if (user.needsPasswordChange !== undefined) token.needsPasswordChange = user.needsPasswordChange
       }
       return token
     },
@@ -20,6 +21,7 @@ export const authConfig = {
       if (session.user) {
         session.user.id = (token.id || token.sub) as string
         session.user.role = token.role as string
+        session.user.needsPasswordChange = token.needsPasswordChange as boolean
       }
       return session
     },

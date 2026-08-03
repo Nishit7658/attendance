@@ -1,7 +1,7 @@
-import { NextRequest } from "next/server";
+
 import { AppError } from "./api-error";
 
-export function verifyCsrfOrigin(request: NextRequest) {
+export function verifyCsrfOrigin(request: Request) {
   // Only apply to POST/PUT/PATCH/DELETE
   if (["GET", "HEAD", "OPTIONS"].includes(request.method)) return;
 

@@ -2,10 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import rateLimit from "@/lib/rate-limit";
+import { verifyCsrfOrigin } from "@/lib/csrf";
+
+const limiter = rateLimit({ interval: 60000, uniqueTokenPerInterval: 500 });
 
 export async function POST(request: NextRequest) {
   try {
+    verifyCsrfOrigin(request);
+
+    const ip = request.headers.get("x-forwarded-for") || request.ip || "unknown-ip";
     const authSession = await auth();
+    const userId = authSession?.user?.id || "unauth";
+    await limiter.check(5, `${ip}-${userId}`); // 5 requests per minute
+
     if (!authSession?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -42,7 +52,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const newHash = await bcrypt.hash(newPassword, 10);
+    const newHash = await bcrypt.hash(newPassword, 12);
     await prisma.user.update({
       where: { id: user.id },
       data: { passwordHash: newHash },
@@ -53,8 +63,12 @@ export async function POST(request: NextRequest) {
       message: "Password updated successfully!",
     });
   } catch (err: unknown) {
+    if (err === "Rate limit exceeded") {
+      return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429 });
+    }
+    console.error("Change password error:", err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Internal server error" },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

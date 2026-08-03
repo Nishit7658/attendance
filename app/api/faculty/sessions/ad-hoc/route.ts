@@ -1,9 +1,17 @@
+import { verifyCsrfOrigin } from "@/lib/csrf";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createAdHocSession } from "@/lib/faculty-service";
 
 export async function POST(request: NextRequest) {
+  try {
+    verifyCsrfOrigin(request);
+  } catch (csrfErr) {
+    const err = csrfErr as Error & { statusCode?: number };
+    return NextResponse.json({ error: err.message }, { status: err.statusCode || 403 });
+  }
+
   try {
     const authSession = await auth();
     if (!authSession?.user?.id) {

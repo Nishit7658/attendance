@@ -1,3 +1,5 @@
+import { createEventSchema, validatePayload } from "@/lib/zod-schemas";
+import { verifyCsrfOrigin } from "@/lib/csrf";
 import { requireRole } from "@/lib/api-auth";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -26,9 +28,19 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    verifyCsrfOrigin(request);
+  } catch (csrfErr) {
+    const err = csrfErr as Error & { statusCode?: number };
+    return NextResponse.json({ error: err.message }, { status: err.statusCode || 403 });
+  }
+
+  try {
     const currentUser = await requireRole("ADMIN");
 
-    const { name, description, startDate, endDate, scopeType, department, savedGroupId, studentIds } = await request.json();
+    const rawBody = await request.json();
+    const { data: parsedData, error: validationError } = validatePayload(createEventSchema, rawBody);
+    if (validationError) return NextResponse.json({ error: validationError }, { status: 400 });
+    const { name, description, startDate, endDate, scopeType, department, savedGroupId, studentIds } = parsedData!;
 
     if (!name || !startDate || !endDate || !scopeType) {
       return NextResponse.json({ error: "Name, startDate, endDate, and scopeType are required" }, { status: 400 });

@@ -1,3 +1,4 @@
+import { verifyCsrfOrigin } from "@/lib/csrf";
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { auth } from "@/lib/auth";
@@ -29,6 +30,13 @@ function parseCSV(text: string): string[][] {
 }
 
 export async function POST(request: NextRequest) {
+  try {
+    verifyCsrfOrigin(request);
+  } catch (csrfErr) {
+    const err = csrfErr as Error & { statusCode?: number };
+    return NextResponse.json({ error: err.message }, { status: err.statusCode || 403 });
+  }
+
   try {
     // Auth check
     const authSession = await auth();

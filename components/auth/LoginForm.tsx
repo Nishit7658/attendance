@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react"
 import { signIn } from "next-auth/react"
+import Link from "next/link"
 import { Input } from "@/components/ui/Input"
 import { Button } from "@/components/ui/Button"
 
@@ -83,6 +84,15 @@ export function LoginForm() {
           {loading ? "Authenticating..." : "Sign in"}
         </Button>
       </form>
+
+      <div className="mt-4 text-center">
+        <Link
+          href="/forgot-password"
+          className="text-[12px] text-muted hover:text-ink transition-colors"
+        >
+          Forgot password?
+        </Link>
+      </div>
     </div>
   )
 }

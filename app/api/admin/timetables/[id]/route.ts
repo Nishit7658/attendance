@@ -1,3 +1,4 @@
+import { verifyCsrfOrigin } from "@/lib/csrf";
 import { requireRole } from "@/lib/api-auth";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -19,6 +20,13 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
 }
 
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
+  try {
+    verifyCsrfOrigin(req);
+  } catch (csrfErr) {
+    const err = csrfErr as Error & { statusCode?: number };
+    return NextResponse.json({ error: err.message }, { status: err.statusCode || 403 });
+  }
+
   await requireRole("ADMIN");
 
   try {
@@ -97,6 +105,13 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 }
 
 export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
+  try {
+    verifyCsrfOrigin(_req);
+  } catch (csrfErr) {
+    const err = csrfErr as Error & { statusCode?: number };
+    return NextResponse.json({ error: err.message }, { status: err.statusCode || 403 });
+  }
+
   await requireRole("ADMIN");
 
   try {

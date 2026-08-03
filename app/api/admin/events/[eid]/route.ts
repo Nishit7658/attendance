@@ -1,3 +1,4 @@
+import { verifyCsrfOrigin } from "@/lib/csrf";
 import { requireRole } from "@/lib/api-auth";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -35,6 +36,13 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: { eid: string } }
 ) {
+  try {
+    verifyCsrfOrigin(_request);
+  } catch (csrfErr) {
+    const err = csrfErr as Error & { statusCode?: number };
+    return NextResponse.json({ error: err.message }, { status: err.statusCode || 403 });
+  }
+
   try {
     await requireRole("ADMIN");
 

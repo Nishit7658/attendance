@@ -1,4 +1,6 @@
+import { verifyCsrfOrigin } from "@/lib/csrf";
 import { requireRole } from "@/lib/api-auth";
+import { createUserSchema, validatePayload } from "@/lib/zod-schemas";
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
@@ -34,10 +36,20 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  try {
+    verifyCsrfOrigin(req);
+  } catch (csrfErr) {
+    const err = csrfErr as Error & { statusCode?: number };
+    return NextResponse.json({ error: err.message }, { status: err.statusCode || 403 });
+  }
+
   await requireRole("ADMIN");
 
   try {
-    const { name, email, password, role, department } = await req.json();
+    const rawBody = await req.json();
+    const { data: parsedData, error: validationError } = validatePayload(createUserSchema, rawBody);
+    if (validationError) return NextResponse.json({ error: validationError }, { status: 400 });
+    const { name, email, password, role, department } = parsedData!;
 
     if (!name || !email || !password || !role) {
       return NextResponse.json({ error: "Name, email, password, and role are required" }, { status: 400 });

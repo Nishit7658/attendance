@@ -1,4 +1,6 @@
+import { verifyCsrfOrigin } from "@/lib/csrf";
 import { requireRole } from "@/lib/api-auth";
+import { createCourseSchema, validatePayload } from "@/lib/zod-schemas";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
@@ -21,10 +23,20 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  try {
+    verifyCsrfOrigin(req);
+  } catch (csrfErr) {
+    const err = csrfErr as Error & { statusCode?: number };
+    return NextResponse.json({ error: err.message }, { status: err.statusCode || 403 });
+  }
+
   await requireRole("ADMIN");
 
   try {
-    const { code, name, department, credits, branchId } = await req.json();
+    const rawBody = await req.json();
+    const { data: parsedData, error: validationError } = validatePayload(createCourseSchema, rawBody);
+    if (validationError) return NextResponse.json({ error: validationError }, { status: 400 });
+    const { code, name, department, credits, branchId } = parsedData!;
 
     if (!code || !name) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });

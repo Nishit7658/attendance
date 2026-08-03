@@ -1,12 +1,24 @@
+import { verifyCsrfOrigin } from "@/lib/csrf";
 import { requireRole } from "@/lib/api-auth";
+import { createTimetableSchema, validatePayload } from "@/lib/zod-schemas";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(req: Request) {
+  try {
+    verifyCsrfOrigin(req);
+  } catch (csrfErr) {
+    const err = csrfErr as Error & { statusCode?: number };
+    return NextResponse.json({ error: err.message }, { status: err.statusCode || 403 });
+  }
+
   await requireRole("ADMIN");
 
   try {
-    const { dayOfWeek, startTime, endTime, courseId, facultyId, room, section } = await req.json();
+    const rawBody = await req.json();
+    const { data: parsedData, error: validationError } = validatePayload(createTimetableSchema, rawBody);
+    if (validationError) return NextResponse.json({ error: validationError }, { status: 400 });
+    const { dayOfWeek, startTime, endTime, courseId, facultyId, room, section } = parsedData!;
 
     if (dayOfWeek === undefined || !startTime || !endTime || !courseId || !facultyId || !room || !section) {
       return NextResponse.json({ error: "All fields are required" }, { status: 400 });

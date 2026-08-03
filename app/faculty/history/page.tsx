@@ -9,7 +9,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { cn } from "@/lib/utils";
 
 interface PageProps {
-  searchParams: { range?: string; from?: string; to?: string };
+  searchParams: { range?: string; from?: string; to?: string; page?: string };
 }
 
 function formatDate(dt: Date) {
@@ -55,18 +55,35 @@ export default async function FacultyHistoryPage({ searchParams }: PageProps) {
     dateFilter = {};
   }
 
-  const sessions = await prisma.session.findMany({
-    where: {
-      facultyId: user.id,
-      status: "ENDED",
-      ...(Object.keys(dateFilter).length > 0 ? { date: dateFilter } : {}),
-    },
-    include: {
-      course: true,
-      _count: { select: { attendanceRecords: true } },
-    },
-    orderBy: { date: "desc" },
-  });
+  const page = parseInt(searchParams.page || "1", 10);
+  const take = 20;
+  const skip = (page - 1) * take;
+
+  const [sessions, totalCount] = await Promise.all([
+    prisma.session.findMany({
+      where: {
+        facultyId: user.id,
+        status: "ENDED",
+        ...(Object.keys(dateFilter).length > 0 ? { date: dateFilter } : {}),
+      },
+      include: {
+        course: true,
+        _count: { select: { attendanceRecords: true } },
+      },
+      orderBy: { date: "desc" },
+      skip,
+      take,
+    }),
+    prisma.session.count({
+      where: {
+        facultyId: user.id,
+        status: "ENDED",
+        ...(Object.keys(dateFilter).length > 0 ? { date: dateFilter } : {}),
+      }
+    })
+  ]);
+  
+  const totalPages = Math.ceil(totalCount / take);
 
   const rangeLinks = [
     { label: "Last 7 days", value: "7d" },
@@ -152,39 +169,57 @@ export default async function FacultyHistoryPage({ searchParams }: PageProps) {
           }
         />
       ) : (
-        <Table>
-          <TableHeader>
-            <tr>
-              <TableHead>Date</TableHead>
-              <TableHead>Course</TableHead>
-              <TableHead>Start Time</TableHead>
-              <TableHead>End Time</TableHead>
-              <TableHead>Students Marked</TableHead>
-              <TableHead>Status</TableHead>
-            </tr>
-          </TableHeader>
-          <TableBody>
-            {sessions.map((s) => (
-              <TableRow key={s.id}>
-                <TableCell className="font-medium text-slate-900">
-                  <Link
-                    href={`/faculty/sessions/${s.id}/summary`}
-                    className="hover:text-navy-700 hover:underline"
-                  >
-                    {formatDate(s.date)}
-                  </Link>
-                </TableCell>
-                <TableCell>{s.course.name}</TableCell>
-                <TableCell>{formatTime(s.startTime)}</TableCell>
-                <TableCell>{formatTime(s.endTime)}</TableCell>
-                <TableCell>{s._count.attendanceRecords}</TableCell>
-                <TableCell>
-                  <Badge variant="danger">ENDED</Badge>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <div className="space-y-4">
+          <Table>
+            <TableHeader>
+              <tr>
+                <TableHead>Date</TableHead>
+                <TableHead>Course</TableHead>
+                <TableHead>Start Time</TableHead>
+                <TableHead>End Time</TableHead>
+                <TableHead>Students Marked</TableHead>
+                <TableHead>Status</TableHead>
+              </tr>
+            </TableHeader>
+            <TableBody>
+              {sessions.map((s) => (
+                <TableRow key={s.id}>
+                  <TableCell className="font-medium text-slate-900">
+                    <Link
+                      href={`/faculty/sessions/${s.id}/summary`}
+                      className="hover:text-navy-700 hover:underline"
+                    >
+                      {formatDate(s.date)}
+                    </Link>
+                  </TableCell>
+                  <TableCell>{s.course.name}</TableCell>
+                  <TableCell>{formatTime(s.startTime)}</TableCell>
+                  <TableCell>{formatTime(s.endTime)}</TableCell>
+                  <TableCell>{s._count.attendanceRecords}</TableCell>
+                  <TableCell>
+                    <Badge variant="danger">ENDED</Badge>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between border-t border-slate-200 pt-4 mt-6">
+              <div className="text-sm text-slate-500">
+                Showing {skip + 1} to {Math.min(skip + take, totalCount)} of {totalCount} results
+              </div>
+              <div className="flex gap-2">
+                <Link href={`/faculty/history?page=${page - 1}${range !== 'all' ? `&range=${range}` : ''}${isCustom ? `&from=${customFrom}&to=${customTo}` : ''}`} passHref>
+                  <Button variant="secondary" disabled={page <= 1}>Previous</Button>
+                </Link>
+                <Link href={`/faculty/history?page=${page + 1}${range !== 'all' ? `&range=${range}` : ''}${isCustom ? `&from=${customFrom}&to=${customTo}` : ''}`} passHref>
+                  <Button variant="secondary" disabled={page >= totalPages}>Next</Button>
+                </Link>
+              </div>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

@@ -25,6 +25,7 @@ export default auth((req) => {
 
   const isRoot = pathname === "/"
   const isAuthPage = pathname === "/login"
+  const isPublicPage = pathname === "/login" || pathname === "/forgot-password" || pathname === "/reset-password"
   const isErrorPage = pathname === "/error"
   const role = session?.user?.role
 
@@ -38,7 +39,7 @@ export default auth((req) => {
   }
 
   // Unauthenticated user on protected page → redirect to login
-  if (!role && !isAuthPage && !isErrorPage && !isRoot) {
+  if (!role && !isPublicPage && !isErrorPage && !isRoot) {
     return NextResponse.redirect(new URL("/login", req.nextUrl.origin))
   }
 
@@ -56,8 +57,16 @@ export default auth((req) => {
     return NextResponse.redirect(new URL(dest, req.nextUrl.origin))
   }
 
+  // Force password change check
+  const isChangePasswordPage = pathname === "/change-password"
+  const isAuthAction = pathname.startsWith("/api/auth")
+
+  if (role && session?.user?.needsPasswordChange && !isChangePasswordPage && !isAuthAction) {
+    return NextResponse.redirect(new URL("/change-password", req.nextUrl.origin))
+  }
+
   // Role-based route access
-  if (role) {
+  if (role && !session?.user?.needsPasswordChange) {
     if (pathname.startsWith("/faculty") && !["FACULTY", "HOD", "ADMIN"].includes(role)) {
       return NextResponse.redirect(new URL("/error?code=unauthorized", req.nextUrl.origin))
     }

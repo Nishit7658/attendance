@@ -50,6 +50,7 @@ export default function LiveSessionClient({
   const [loadingModalData, setLoadingModalData] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [nextRefresh, setNextRefresh] = useState<number | null>(null);
+  const [rosterFilter, setRosterFilter] = useState<"ALL" | "PRESENT" | "ABSENT" | "UNMARKED">("ALL");
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectAttemptRef = useRef(0);
@@ -265,7 +266,23 @@ export default function LiveSessionClient({
 
   const presentCount = students?.filter((s) => s.status === "PRESENT").length ?? 0;
   const absentCount = students ? students.filter((s) => s.status === "ABSENT" || s.status === null).length : 0;
+  const unmarkedRosterCount = students?.filter((s) => s.status === null).length ?? 0;
   const totalCount = students?.length ?? 0;
+
+  const filteredStudents = students?.filter((s) => {
+    if (rosterFilter === "ALL") return true;
+    if (rosterFilter === "PRESENT") return s.status === "PRESENT";
+    if (rosterFilter === "ABSENT") return s.status === "ABSENT";
+    if (rosterFilter === "UNMARKED") return s.status === null;
+    return true;
+  }) ?? null;
+
+  const FILTER_TABS: { label: string; value: "ALL" | "PRESENT" | "ABSENT" | "UNMARKED"; count: number | null }[] = [
+    { label: "All", value: "ALL", count: totalCount },
+    { label: "Present", value: "PRESENT", count: presentCount },
+    { label: "Absent", value: "ABSENT", count: students ? absentCount - unmarkedRosterCount : null },
+    { label: "Unmarked", value: "UNMARKED", count: unmarkedRosterCount },
+  ];
 
   return (
     <div className="flex flex-col items-center">
@@ -373,29 +390,46 @@ export default function LiveSessionClient({
         {/* Student Roster */}
         <div className="flex-1 w-full lg:max-w-md">
           <div className="rounded-lg border border-slate-200 bg-white overflow-hidden shadow-sm">
-            {/* Roster Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-slate-50">
-              <span className="text-sm font-semibold text-slate-800">
-                Student Roster
-              </span>
-              <span className="text-xs text-slate-500 font-medium">
-                {presentCount}/{totalCount} Present
-              </span>
+            {/* Roster Header + Filters */}
+            <div className="border-b border-slate-200 bg-slate-50">
+              <div className="flex items-center justify-between px-4 py-2">
+                <span className="text-sm font-semibold text-slate-800">Student Roster</span>
+                <span className="text-xs text-slate-500 font-medium">{presentCount}/{totalCount} Present</span>
+              </div>
+              {/* Filter tabs */}
+              <div className="flex border-t border-slate-100">
+                {FILTER_TABS.map((tab) => (
+                  <button
+                    key={tab.value}
+                    onClick={() => setRosterFilter(tab.value)}
+                    className={`flex-1 py-1.5 text-[11px] font-medium transition-colors ${
+                      rosterFilter === tab.value
+                        ? "bg-white text-primary border-b-2 border-primary"
+                        : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    {tab.label}
+                    {tab.count !== null && tab.count > 0 && (
+                      <span className="ml-1 text-[10px] opacity-70">({tab.count})</span>
+                    )}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Roster List */}
             <div className="max-h-[400px] overflow-y-auto divide-y divide-slate-100">
-              {students === null ? (
+              {filteredStudents === null ? (
                 <div className="px-4 py-8 text-center text-sm text-slate-500">
                   <div className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin mx-auto mb-2" />
                   Loading students...
                 </div>
-              ) : students.length === 0 ? (
+              ) : filteredStudents.length === 0 ? (
                 <div className="px-4 py-8 text-center text-sm text-slate-400">
-                  No students found.
+                  {rosterFilter === "ALL" ? "No students found." : `No ${rosterFilter.toLowerCase()} students.`}
                 </div>
               ) : (
-                students.map((student) => {
+                filteredStudents.map((student) => {
                   const isMarking = markingId === student.id;
                   const status = student.status;
 

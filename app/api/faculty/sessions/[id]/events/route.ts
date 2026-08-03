@@ -53,49 +53,49 @@ export async function GET(
         }
       };
 
-      const tick = async () => {
-        try {
-          const current = await prisma.session.findUnique({
-            where: { id: params.id },
-          });
-
-          if (!current || current.status !== "ACTIVE") {
-            send("session-ended", {});
-            cleanup();
-            return;
-          }
-
-          const token = await generateQrToken(params.id);
-          const expiresAt = getQrExpiry();
-          send("token", { token, expiresAt });
-
-          const records = await prisma.attendanceRecord.findMany({
-            where: { sessionId: params.id },
-          });
-          const present = records.filter(
-            (r) => r.status === "PRESENT"
-          ).length;
-          const late = records.filter(
-            (r) => r.status === "LATE"
-          ).length;
-          const absent = records.filter(
-            (r) => r.status === "ABSENT"
-          ).length;
-          send("attendance", {
-            present,
-            late,
-            absent,
-            total: records.length,
-          });
-        } catch (err) {
-          console.error("SSE error for session", params.id, err);
-        }
-      };
-
-      // Send the first update immediately
-      tick();
-
       getSystemConfigNumber("qr_refresh_interval", 5).then((intervalSec: number) => {
+        const tick = async () => {
+          try {
+            const current = await prisma.session.findUnique({
+              where: { id: params.id },
+            });
+
+            if (!current || current.status !== "ACTIVE") {
+              send("session-ended", {});
+              cleanup();
+              return;
+            }
+
+            const token = await generateQrToken(params.id, intervalSec);
+            const expiresAt = getQrExpiry(intervalSec);
+            send("token", { token, expiresAt });
+
+            const records = await prisma.attendanceRecord.findMany({
+              where: { sessionId: params.id },
+            });
+            const present = records.filter(
+              (r) => r.status === "PRESENT"
+            ).length;
+            const late = records.filter(
+              (r) => r.status === "LATE"
+            ).length;
+            const absent = records.filter(
+              (r) => r.status === "ABSENT"
+            ).length;
+            send("attendance", {
+              present,
+              late,
+              absent,
+              total: records.length,
+            });
+          } catch (err) {
+            console.error("SSE error for session", params.id, err);
+          }
+        };
+
+        // Send the first update immediately
+        tick();
+
         const intervalMs = Math.max(2, intervalSec) * 1000;
         const interval = setInterval(tick, intervalMs);
 
