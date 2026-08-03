@@ -80,14 +80,14 @@ export default function QRScanner() {
 
         // Initialize focus and zoom capabilities if supported
         try {
-          const capabilities = (track.getCapabilities?.() || {}) as any;
+          const capabilities = (track.getCapabilities?.() || {}) as Record<string, unknown>;
           if (capabilities.zoom) {
             setHasNativeZoom(true);
-            setMinZoom(capabilities.zoom.min || 1);
-            setMaxZoom(Math.min(capabilities.zoom.max || 4, 8));
+            setMinZoom((capabilities.zoom as { min?: number }).min || 1);
+            setMaxZoom(Math.min((capabilities.zoom as { max?: number }).max || 4, 8));
           }
-          if (capabilities.focusMode?.includes("continuous")) {
-            track.applyConstraints({ advanced: [{ focusMode: "continuous" } as any] }).catch(() => {});
+          if (Array.isArray(capabilities.focusMode) && capabilities.focusMode.includes("continuous")) {
+            track.applyConstraints({ advanced: [{ focusMode: "continuous" } as MediaTrackConstraintSet] }).catch(() => {});
           }
         } catch {
           // ignore constraint errors
@@ -124,9 +124,9 @@ export default function QRScanner() {
     const track = streamRef.current?.getVideoTracks()[0];
     if (track) {
       try {
-        const capabilities = (track.getCapabilities?.() || {}) as any;
+        const capabilities = (track.getCapabilities?.() || {}) as Record<string, unknown>;
         if (capabilities.zoom) {
-          track.applyConstraints({ advanced: [{ zoom: clamped } as any] }).catch(() => {});
+          track.applyConstraints({ advanced: [{ zoom: clamped } as MediaTrackConstraintSet] }).catch(() => {});
         }
       } catch {
         // Fallback to digital CSS & canvas zoom
@@ -145,14 +145,15 @@ export default function QRScanner() {
     const track = streamRef.current?.getVideoTracks()[0];
     if (track) {
       try {
-        const capabilities = (track.getCapabilities?.() || {}) as any;
-        const advanced: any[] = [];
-        if (capabilities.focusMode?.includes("single-shot")) {
-          advanced.push({ focusMode: "single-shot", pointsOfInterest: [{ x, y }] });
-        } else if (capabilities.focusMode?.includes("manual")) {
-          advanced.push({ focusMode: "manual", pointsOfInterest: [{ x, y }] });
-        } else if (capabilities.focusMode?.includes("continuous")) {
-          advanced.push({ focusMode: "continuous" });
+        const capabilities = (track.getCapabilities?.() || {}) as Record<string, unknown>;
+        const advanced: MediaTrackConstraintSet[] = [];
+        const focusModes = Array.isArray(capabilities.focusMode) ? capabilities.focusMode : [];
+        if (focusModes.includes("single-shot")) {
+          advanced.push({ focusMode: "single-shot", pointsOfInterest: [{ x, y }] } as MediaTrackConstraintSet);
+        } else if (focusModes.includes("manual")) {
+          advanced.push({ focusMode: "manual", pointsOfInterest: [{ x, y }] } as MediaTrackConstraintSet);
+        } else if (focusModes.includes("continuous")) {
+          advanced.push({ focusMode: "continuous" } as MediaTrackConstraintSet);
         }
         if (advanced.length > 0) {
           track.applyConstraints({ advanced }).catch(() => {});

@@ -20,14 +20,6 @@ export default async function StudentTimetablePage({
 
   if (!currentUser || currentUser.role !== "STUDENT") redirect("/faculty/dashboard");
 
-  // Fetch all divisions
-  const divisions = await prisma.division.findMany({
-    orderBy: { name: 'asc' }
-  });
-
-  // If division is selected in URL use it, otherwise default to first division
-  const selectedDivId = searchParams.div || divisions[0]?.id;
-  
   const dayParam = searchParams.day;
   const selectedDay = dayParam && dayParam !== "all" ? parseInt(dayParam) : undefined;
   const visibleDays = selectedDay !== undefined ? [selectedDay] : [1, 2, 3, 4, 5, 6];
@@ -42,10 +34,15 @@ export default async function StudentTimetablePage({
     faculty: { name: string };
   }[] = [];
 
-  if (selectedDivId) {
+  if (currentUser.divisionId) {
     entries = await prisma.timetableEntry.findMany({
       where: { 
-        divisionId: selectedDivId,
+        divisionId: currentUser.divisionId,
+        // Only show classes for ALL batches OR the student's specific batch
+        OR: [
+          { batchId: null },
+          { batchId: currentUser.batchId }
+        ],
         ...(selectedDay !== undefined ? { dayOfWeek: selectedDay } : {})
       },
       include: {
@@ -73,27 +70,10 @@ export default async function StudentTimetablePage({
       </h1>
 
       <div className="mb-6 flex flex-col gap-4">
-        {/* Division Selector */}
-        <div className="flex gap-2 border-b border-border pb-4 overflow-x-auto">
-          {divisions.map(div => (
-            <Link
-              key={div.id}
-              href={`/student/timetable?div=${div.id}${dayParam ? `&day=${dayParam}` : ""}`}
-              className={`rounded-full px-4 py-1.5 text-[14px] font-semibold transition-colors shrink-0 ${
-                selectedDivId === div.id
-                  ? "bg-primary text-white"
-                  : "bg-surface text-ink hover:bg-surface-hover border border-border"
-              }`}
-            >
-              {div.name}
-            </Link>
-          ))}
-        </div>
-
         {/* Day Selector */}
         <div className="flex flex-wrap items-center gap-2">
           <Link
-            href={`/student/timetable?div=${selectedDivId}&day=all`}
+            href={`/student/timetable?day=all`}
             className={`rounded border px-3 py-1.5 text-[13px] font-medium transition-colors ${
               selectedDay === undefined
                 ? "bg-primary text-white border-primary"
@@ -107,7 +87,7 @@ export default async function StudentTimetablePage({
             return (
               <Link
                 key={i}
-                href={`/student/timetable?div=${selectedDivId}&day=${i}`}
+                href={`/student/timetable?day=${i}`}
                 className={`rounded border px-3 py-1.5 text-[13px] font-medium transition-colors ${
                   selectedDay === i
                     ? "bg-primary text-white border-primary"

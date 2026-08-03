@@ -1,19 +1,10 @@
+import { requireRole } from "@/lib/api-auth";
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export async function GET() {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const currentUser = await prisma.user.findUnique({
-      where: { id: session.user.id },
-    });
-    if (currentUser?.role !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    await requireRole("ADMIN");
 
     const configs = await prisma.systemConfig.findMany({
       orderBy: { key: "asc" },
@@ -35,16 +26,7 @@ export async function GET() {
 
 export async function PUT(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const currentUser = await prisma.user.findUnique({
-      where: { id: session.user.id },
-    });
-    if (currentUser?.role !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    await requireRole("ADMIN");
 
     const body = await request.json();
     const { key, value } = body;

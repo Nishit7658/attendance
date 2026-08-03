@@ -1,14 +1,10 @@
+import { requireRole } from "@/lib/api-auth";
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const currentUser = await prisma.user.findUnique({ where: { id: session.user.id } });
-  if (currentUser?.role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  await requireRole("ADMIN");
 
   const user = await prisma.user.findUnique({
     where: { id: params.id },
@@ -21,11 +17,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
 }
 
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const currentUser = await prisma.user.findUnique({ where: { id: session.user.id } });
-  if (currentUser?.role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  await requireRole("ADMIN");
 
   try {
     const { name, email, password, role, department } = await req.json();
@@ -77,11 +69,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 }
 
 export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const currentUser = await prisma.user.findUnique({ where: { id: session.user.id } });
-  if (currentUser?.role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const currentUser = await requireRole("ADMIN");
 
   try {
     const existing = await prisma.user.findUnique({ where: { id: params.id } });

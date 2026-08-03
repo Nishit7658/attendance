@@ -1,13 +1,9 @@
+import { requireRole } from "@/lib/api-auth";
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const currentUser = await prisma.user.findUnique({ where: { id: session.user.id } });
-  if (currentUser?.role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  await requireRole("ADMIN");
 
   const course = await prisma.course.findUnique({ where: { id: params.id } });
   if (!course) return NextResponse.json({ error: "Course not found" }, { status: 404 });
@@ -16,11 +12,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
 }
 
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const currentUser = await prisma.user.findUnique({ where: { id: session.user.id } });
-  if (currentUser?.role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  await requireRole("ADMIN");
 
   try {
     const { code, name, department, credits } = await req.json();
@@ -51,11 +43,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 }
 
 export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const currentUser = await prisma.user.findUnique({ where: { id: session.user.id } });
-  if (currentUser?.role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  await requireRole("ADMIN");
 
   try {
     const existing = await prisma.course.findUnique({ where: { id: params.id } });

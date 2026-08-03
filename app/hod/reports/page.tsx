@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 
 interface PageProps {
-  searchParams: { from?: string; to?: string };
+  searchParams: { from?: string; to?: string; page?: string };
 }
 
 function formatDate(d: Date): string {
@@ -60,11 +60,20 @@ export default async function HODReportsPage({ searchParams }: PageProps) {
     rangeLabel = `This Month (${formatDate(rangeStart)} – ${formatDate(rangeEnd)})`;
   }
 
-  const [facultyList, totalSessions] = await Promise.all([
+  const page = parseInt(searchParams.page || "1", 10);
+  const take = 20;
+  const skip = (page - 1) * take;
+
+  const [facultyList, totalFacultyCount, totalSessions] = await Promise.all([
     prisma.user.findMany({
       where: { role: "FACULTY", branchId: branch.id },
       select: { id: true, name: true, email: true },
       orderBy: { name: "asc" },
+      skip,
+      take,
+    }),
+    prisma.user.count({
+      where: { role: "FACULTY", branchId: branch.id },
     }),
     prisma.session.count({
       where: {
@@ -74,18 +83,18 @@ export default async function HODReportsPage({ searchParams }: PageProps) {
     }),
   ]);
 
+  const totalPages = Math.ceil(totalFacultyCount / take);
+
   const attendanceRecords = await prisma.attendanceRecord.findMany({
     where: {
       session: {
-        faculty: { branchId: branch.id },
+        facultyId: { in: facultyList.map(f => f.id) },
         date: { gte: rangeStart, lte: rangeEnd },
       },
     },
     include: {
       session: {
-        include: {
-          faculty: { select: { id: true, name: true } },
-        },
+        select: { id: true, facultyId: true }
       },
     },
   });
@@ -95,7 +104,7 @@ export default async function HODReportsPage({ searchParams }: PageProps) {
     { sessions: Set<string>; present: number; total: number }
   >();
   for (const record of attendanceRecords) {
-    const facId = record.session.faculty.id;
+    const facId = record.session.facultyId;
     if (!attendanceMap.has(facId)) {
       attendanceMap.set(facId, { sessions: new Set(), present: 0, total: 0 });
     }
@@ -215,6 +224,22 @@ export default async function HODReportsPage({ searchParams }: PageProps) {
             ))}
           </TableBody>
         </Table>
+      )}
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between border-t border-slate-200 pt-4 mt-6">
+          <div className="text-sm text-slate-500">
+            Showing {skip + 1} to {Math.min(skip + take, totalFacultyCount)} of {totalFacultyCount} results
+          </div>
+          <div className="flex gap-2">
+            <Link href={`/hod/reports?page=${page - 1}${isCustom ? `&from=${customFrom}&to=${customTo}` : ''}`} passHref>
+              <button className="btn-secondary px-3 py-1.5 text-xs" disabled={page <= 1}>Previous</button>
+            </Link>
+            <Link href={`/hod/reports?page=${page + 1}${isCustom ? `&from=${customFrom}&to=${customTo}` : ''}`} passHref>
+              <button className="btn-secondary px-3 py-1.5 text-xs" disabled={page >= totalPages}>Next</button>
+            </Link>
+          </div>
+        </div>
       )}
     </div>
   );

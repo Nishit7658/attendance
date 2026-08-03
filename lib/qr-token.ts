@@ -1,7 +1,10 @@
 import { SignJWT, jwtVerify } from "jose";
 
 function getSecret(): Uint8Array {
-  const secret = process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET || "8f3d1e4a7c9b2e5f6a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f";
+  const secret = process.env.QR_SIGNING_SECRET || process.env.AUTH_SECRET;
+  if (!secret) {
+    throw new Error("QR signing secret is not set in environment variables");
+  }
   return new TextEncoder().encode(secret);
 }
 
@@ -9,17 +12,17 @@ export async function generateQrToken(sessionId: string): Promise<string> {
   const payload = { sessionId, ts: Date.now() };
   return new SignJWT(payload)
     .setProtectedHeader({ alg: "HS256" })
-    .setExpirationTime("120s")
+    .setExpirationTime("10s")
     .sign(getSecret());
 }
 
 export async function verifyQrToken(token: string) {
   const { payload } = await jwtVerify(token, getSecret(), {
-    clockTolerance: 30, // allow 30s clock skew
+    clockTolerance: 5, // Tight clock tolerance
   });
   return payload as { sessionId: string; ts: number };
 }
 
 export function getQrExpiry(): number {
-  return Date.now() + 120000;
+  return Date.now() + 10000;
 }

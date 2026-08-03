@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 
-type ImportEntity = "users" | "courses";
+type ImportEntity = "users" | "courses" | "branches" | "semesters" | "divisions" | "batches" | "timetable";
 type RowStatus = "ok" | "skipped" | "error";
 
 interface ImportResult {
@@ -31,6 +31,50 @@ Jane Smith,jane@college.edu,FACULTY,Computer Science`,
     sample: `code,name,department,credits
 CS101,Introduction to Programming,Computer Science,4
 MA101,Calculus I,Mathematics,3`,
+  },
+  branches: {
+    label: "Branches",
+    description: "Import branches",
+    requiredColumns: ["code", "name"],
+    optionalColumns: [],
+    sample: `code,name
+CSE,Computer Science
+IT,Information Technology`,
+  },
+  semesters: {
+    label: "Semesters",
+    description: "Import semesters",
+    requiredColumns: ["number", "branchCode"],
+    optionalColumns: [],
+    sample: `number,branchCode
+1,CSE
+2,CSE`,
+  },
+  divisions: {
+    label: "Divisions",
+    description: "Import divisions",
+    requiredColumns: ["name", "semesterNumber", "branchCode"],
+    optionalColumns: [],
+    sample: `name,semesterNumber,branchCode
+A,1,CSE
+B,1,CSE`,
+  },
+  batches: {
+    label: "Batches",
+    description: "Import batches",
+    requiredColumns: ["name", "divisionName", "semesterNumber", "branchCode"],
+    optionalColumns: [],
+    sample: `name,divisionName,semesterNumber,branchCode
+B1,A,1,CSE
+B2,A,1,CSE`,
+  },
+  timetable: {
+    label: "Timetable",
+    description: "Import timetable entries",
+    requiredColumns: ["dayOfWeek", "startTime", "endTime", "courseCode", "facultyEmail", "room", "section", "divisionName", "semesterNumber", "branchCode"],
+    optionalColumns: ["batchName"],
+    sample: `dayOfWeek,startTime,endTime,courseCode,facultyEmail,room,section,divisionName,semesterNumber,branchCode,batchName
+1,09:00,10:00,CS101,jane@college.edu,101,A,A,1,CSE,`,
   },
 };
 
@@ -101,13 +145,13 @@ export default function AdminImportPage() {
       <h1 className="mb-6 text-2xl font-bold text-navy-900">Import Data</h1>
 
       {/* Entity selector */}
-      <div className="mb-6 flex gap-3">
+      <div className="mb-6 flex flex-wrap gap-3">
         {(Object.entries(entityConfig) as [ImportEntity, typeof config][]).map(([key, cfg]) => (
           <button
             key={key}
             onClick={() => { setEntity(key); handleReset(); }}
             className={cn(
-              "rounded-lg border px-5 py-3 text-left transition-colors flex-1",
+              "rounded-lg border px-5 py-3 text-left transition-colors flex-[1_1_200px]",
               entity === key
                 ? "border-navy-700 bg-navy-50 ring-1 ring-navy-700"
                 : "border-slate-200 bg-white hover:bg-slate-50"

@@ -16,11 +16,6 @@ interface TokenData {
   expiresAt: number;
 }
 
-interface AttendanceData {
-  present: number;
-  absent: number;
-  total: number;
-}
 
 interface StudentStatus {
   id: string;
@@ -39,16 +34,20 @@ export default function LiveSessionClient({
   courseCode,
 }: LiveSessionClientProps) {
   const router = useRouter();
-  const [_tokenData, setTokenData] = useState<TokenData | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [isFullScreen, setIsFullScreen] = useState(false);
-  const [attendance, setAttendance] = useState<AttendanceData | null>(null);
   const [students, setStudents] = useState<StudentStatus[] | null>(null);
   const [connected, setConnected] = useState(true);
   const [ending, setEnding] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [markingId, setMarkingId] = useState<string | null>(null);
+  
+  // End session modal state
+  const [showEndModal, setShowEndModal] = useState(false);
+  const [unmarkedCount, setUnmarkedCount] = useState<number | null>(null);
+  const [isAdHoc, setIsAdHoc] = useState(false);
+  const [autoMarkAbsent, setAutoMarkAbsent] = useState(true);
+  const [loadingModalData, setLoadingModalData] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [nextRefresh, setNextRefresh] = useState<number | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -91,7 +90,6 @@ export default function LiveSessionClient({
     es.addEventListener("token", (e) => {
       try {
         const data: TokenData = JSON.parse(e.data);
-        setTokenData(data);
         setNextRefresh(Date.now() + 5000);
         QRCode.toDataURL(data.token, {
           width: 512,
@@ -103,10 +101,8 @@ export default function LiveSessionClient({
       }
     });
 
-    es.addEventListener("attendance", (e) => {
+    es.addEventListener("attendance", () => {
       try {
-        const data: AttendanceData = JSON.parse(e.data);
-        setAttendance(data);
         fetchStudents();
       } catch {
         // ignore parse errors
@@ -176,12 +172,32 @@ export default function LiveSessionClient({
     };
   }, [isFullScreen]);
 
+  const handleOpenEndModal = useCallback(async () => {
+    setShowEndModal(true);
+    setLoadingModalData(true);
+    try {
+      const res = await fetch(`/api/faculty/sessions/${sessionId}/unmarked-count`);
+      const data = await res.json();
+      if (res.ok) {
+        setUnmarkedCount(data.count);
+        setIsAdHoc(data.isAdHoc);
+        setAutoMarkAbsent(!data.isAdHoc); // default true for scheduled, false for ad-hoc
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLoadingModalData(false);
+    }
+  }, [sessionId]);
+
   const handleEndSession = useCallback(async () => {
     setEnding(true);
     setError(null);
     try {
       const res = await fetch(`/api/faculty/sessions/${sessionId}/end`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ autoMarkAbsent }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to end session");
@@ -189,9 +205,9 @@ export default function LiveSessionClient({
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "An error occurred");
       setEnding(false);
-      setShowConfirm(false);
+      setShowEndModal(false);
     }
-  }, [sessionId, router]);
+  }, [sessionId, router, autoMarkAbsent]);
 
   const handleMarkStudent = useCallback(
     async (studentId: string, status: MarkStatus) => {
@@ -447,31 +463,70 @@ export default function LiveSessionClient({
         <p className="text-xs text-red-600 mb-4">{error}</p>
       )}
 
-      {/* End Session */}
-      {showConfirm ? (
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-600">End this session?</span>
-          <button
-            onClick={handleEndSession}
-            disabled={ending}
-            className="rounded bg-red-700 px-4 py-1.5 text-xs font-medium text-white hover:bg-red-800 disabled:opacity-50 transition-colors"
-          >
-            {ending ? "Ending..." : "Confirm End"}
-          </button>
-          <button
-            onClick={() => setShowConfirm(false)}
-            className="rounded px-3 py-1.5 text-xs text-slate-500 hover:text-slate-700 transition-colors"
-          >
-            Cancel
-          </button>
+      {/* End Session Button */}
+      <button
+        onClick={handleOpenEndModal}
+        className="rounded border border-red-300 px-4 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 transition-colors"
+      >
+        End Session
+      </button>
+
+      {/* End Session Modal */}
+      {showEndModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-sm rounded-lg bg-white p-5 shadow-xl">
+            <h3 className="mb-2 text-lg font-bold text-slate-900">End Session</h3>
+            <p className="mb-4 text-sm text-slate-600">
+              Are you sure you want to end this session? The QR code will stop working.
+            </p>
+
+            {loadingModalData ? (
+              <div className="mb-4 text-sm text-slate-500 flex items-center gap-2">
+                <div className="w-4 h-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                Checking unmarked students...
+              </div>
+            ) : (
+              <div className="mb-5 rounded border border-slate-200 bg-slate-50 p-3">
+                <label className={`flex items-start gap-3 ${isAdHoc ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 rounded border-slate-300 text-primary focus:ring-primary"
+                    checked={autoMarkAbsent}
+                    onChange={(e) => setAutoMarkAbsent(e.target.checked)}
+                    disabled={isAdHoc}
+                  />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-slate-900">
+                      Auto-mark unmarked as ABSENT
+                    </p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      {isAdHoc 
+                        ? "Not available for ad-hoc sessions" 
+                        : `Will mark ${unmarkedCount ?? 0} unmarked students as ABSENT.`}
+                    </p>
+                  </div>
+                </label>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowEndModal(false)}
+                className="rounded px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
+                disabled={ending}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleEndSession}
+                disabled={ending || loadingModalData}
+                className="rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {ending ? "Ending..." : "End Session"}
+              </button>
+            </div>
+          </div>
         </div>
-      ) : (
-        <button
-          onClick={() => setShowConfirm(true)}
-          className="rounded border border-red-300 px-4 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 transition-colors"
-        >
-          End Session
-        </button>
       )}
 
       {/* Full Screen QR Modal Overlay - ONLY QR CODE */}

@@ -3,6 +3,8 @@
 import React from "react"
 import Link from "next/link"
 
+import { formatTimetableTime, getTimetableMinutes } from "@/lib/time"
+
 export type CalendarEntry = {
   id: string
   dayOfWeek: number
@@ -23,21 +25,6 @@ interface TimetableCalendarProps {
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 const HOUR_HEIGHT = 80 // pixels per hour
-
-function getMinutesFromMidnight(date: Date) {
-  const d = new Date(date)
-  return d.getUTCHours() * 60 + d.getUTCMinutes()
-}
-
-function formatTime(date: Date) {
-  const d = new Date(date)
-  const hours = d.getUTCHours()
-  const minutes = d.getUTCMinutes()
-  const ampm = hours >= 12 ? "PM" : "AM"
-  const h12 = hours % 12 || 12
-  const mStr = minutes < 10 ? `0${minutes}` : minutes
-  return `${h12}:${mStr} ${ampm}`
-}
 
 export function TimetableCalendar({
   entries,
@@ -99,8 +86,8 @@ export function TimetableCalendar({
               .filter((e) => e.dayOfWeek === dayIdx)
               .map((entry) => ({
                 ...entry,
-                startMins: getMinutesFromMidnight(entry.startTime),
-                endMins: getMinutesFromMidnight(entry.endTime),
+                startMins: getTimetableMinutes(new Date(entry.startTime)),
+                endMins: getTimetableMinutes(new Date(entry.endTime)),
               }))
               .sort((a, b) => a.startMins - b.startMins || b.endMins - a.endMins)
 
@@ -191,7 +178,7 @@ export function TimetableCalendar({
                         {entry.subtitle}
                       </div>
                       <div className="mt-auto text-[10px] text-muted font-medium flex justify-between items-end">
-                        <span className="truncate mr-1">{formatTime(entry.startTime)}</span>
+                        <span className="truncate mr-1">{formatTimetableTime(new Date(entry.startTime))}</span>
                         <span className="shrink-0 rounded bg-bg px-1 border border-border">{entry.room}</span>
                       </div>
                     </div>

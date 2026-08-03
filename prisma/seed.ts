@@ -46,8 +46,8 @@ async function main() {
     entries: (TimetableEntrySeed & { division: string })[];
   };
 
-  // Admin & HOD use standard password
-  const adminPasswordHash = await bcrypt.hash("password123", 10);
+  // Admin & HOD use standard secure password
+  const adminPasswordHash = await bcrypt.hash("Admin@College2024!", 10);
 
   // 1. Create Organizational Hierarchy
   const branch = await prisma.branch.upsert({
@@ -137,11 +137,11 @@ async function main() {
     },
   });
 
-  // 3. Create Faculty — password = lowercase(code) + "ce"
+  // 3. Create Faculty — password = Capitalized(code) + "@Faculty2024!"
   const facultyMap = new Map<string, string>();
   for (const f of dbData.faculties) {
     const shortEmail = `${f.code.toLowerCase()}@faculty`;
-    const facultyPassword = f.code.toLowerCase() + "ce";
+    const facultyPassword = `${f.code.toUpperCase()}@Faculty2024!`;
     const facultyPasswordHash = await bcrypt.hash(facultyPassword, 10);
     const user = await prisma.user.upsert({
       where: { email: shortEmail },
@@ -208,7 +208,7 @@ async function main() {
     }
   }
 
-  // 6. Create Students — password = "ce4" + last 3 digits of enrollmentNo
+  // 6. Create Students — password = "Student@" + last 4 digits + "!"
   //    Distribute evenly across CE 1, CE 2, CE 3, CE 4
   await prisma.attendanceRecord.deleteMany();
   await prisma.session.deleteMany();
@@ -233,9 +233,9 @@ async function main() {
     const s = studentsData[i];
     const email = `${s.enrollmentNo}@student`;
 
-    // Password: ce4 + last 3 digits of enrollment number
-    const last3 = s.enrollmentNo.slice(-3);
-    const studentPassword = `ce4${last3}`;
+    // Password: Student@ + last 4 digits + !
+    const last4 = s.enrollmentNo.slice(-4);
+    const studentPassword = `Student@${last4}!`;
     const studentPasswordHash = await bcrypt.hash(studentPassword, 10);
 
     // Distribute across 4 divisions round-robin
@@ -327,12 +327,12 @@ async function main() {
   console.log("Database seeded successfully!");
   console.log("");
   console.log("=== Login Credentials ===");
-  console.log("Admin:   admin@college.edu          / password123");
-  console.log("HOD:     hod@college.edu            / password123");
-  console.log("Faculty: byp@faculty.college.edu    / bypce");
-  console.log("Faculty: nrs@faculty.college.edu    / nrsce");
-  console.log("Student: 240410107071@student.college.edu / ce4071");
-  console.log("Student: 240410107093@student.college.edu / ce4093");
+  console.log("Admin:   admin@college.edu          / Admin@College2024!");
+  console.log("HOD:     hod@college.edu            / Admin@College2024!");
+  console.log("Faculty: byp@faculty.college.edu    / BYP@Faculty2024!");
+  console.log("Faculty: nrs@faculty.college.edu    / NRS@Faculty2024!");
+  console.log("Student: 240410107071@student.college.edu / Student@7071!");
+  console.log("Student: 240410107093@student.college.edu / Student@7093!");
 }
 
 main()

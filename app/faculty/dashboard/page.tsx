@@ -14,14 +14,24 @@ export default async function FacultyDashboardPage() {
     where: { id: session.user.id },
     select: { id: true, role: true },
   });
-  if (!user || !["FACULTY", "HOD", "ADMIN"].includes(user.role)) {
+  if (!user) redirect("/login");
+  if (!["FACULTY", "HOD", "ADMIN"].includes(user.role)) {
     redirect("/login");
   }
 
-  const [todaySessions, activeSession] = await Promise.all([
-    getTodaySessions(user.id),
-    getActiveSession(user.id),
-  ]);
+  let todaySessions: Awaited<ReturnType<typeof getTodaySessions>> = [];
+  let activeSession: Awaited<ReturnType<typeof getActiveSession>> = null;
+  try {
+    const results = await Promise.all([
+      getTodaySessions(user.id),
+      getActiveSession(user.id),
+    ]);
+    todaySessions = results[0];
+    activeSession = results[1];
+  } catch (error) {
+    console.error("Dashboard data fetch error:", error);
+    // Graceful degradation: empty lists
+  }
 
   return (
     <div className="max-w-3xl">

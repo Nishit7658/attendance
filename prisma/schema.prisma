@@ -157,6 +157,8 @@ model Session {
   status           SessionStatus @default(SCHEDULED)
   qrToken          String?       @unique
   isAdHoc          Boolean       @default(false)
+  academicYear     String?
+  isArchived       Boolean       @default(false)
   createdAt        DateTime      @default(now())
 
   timetableEntry    TimetableEntry?    @relation(fields: [timetableEntryId], references: [id])

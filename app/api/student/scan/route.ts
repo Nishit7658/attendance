@@ -2,12 +2,77 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { verifyQrToken } from "@/lib/qr-token";
+import rateLimit from "@/lib/rate-limit";
+import { AppError, handleApiError } from "@/lib/api-error";
+import { verifyCsrfOrigin } from "@/lib/csrf";
+const scanLimiter = rateLimit({
+  uniqueTokenPerInterval: 500,
+  interval: 60000,
+});
+
+import ipaddr from "ipaddr.js";
+import { getSystemConfigBoolean, getSystemConfig } from "@/lib/system-config";
 
 export async function POST(request: NextRequest) {
   try {
+    verifyCsrfOrigin(request);
+    
     const authSession = await auth();
     if (!authSession?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const lanEnabled = await getSystemConfigBoolean("lan_restriction_enabled", false);
+    if (lanEnabled) {
+      const allowedIpsConfig = await getSystemConfig("lan_allowed_ips", "");
+      const allowedList = allowedIpsConfig.split(",").map(s => s.trim()).filter(Boolean);
+      
+      if (allowedList.length > 0) {
+        const clientIpStr = request.ip || request.headers.get("x-forwarded-for")?.split(",")[0].trim();
+        
+        if (!clientIpStr) {
+          throw new AppError("Cannot determine client IP for LAN restriction check", 403);
+        }
+        
+        let isAllowed = false;
+        try {
+          let clientIp = ipaddr.parse(clientIpStr);
+          if (clientIp.kind() === 'ipv6') {
+            const ipv6 = clientIp as ipaddr.IPv6;
+            if (ipv6.isIPv4MappedAddress()) {
+              clientIp = ipv6.toIPv4Address();
+            }
+          }
+          
+          for (const pattern of allowedList) {
+            if (pattern.includes("/")) {
+              const cidr = ipaddr.parseCIDR(pattern);
+              if (clientIp.kind() === cidr[0].kind() && clientIp.match(cidr)) {
+                isAllowed = true;
+                break;
+              }
+            } else {
+              const exact = ipaddr.parse(pattern);
+              if (clientIp.kind() === exact.kind() && clientIp.toString() === exact.toString()) {
+                isAllowed = true;
+                break;
+              }
+            }
+          }
+        } catch (e) {
+          // Catch parse errors for invalid IPs and deny access safely
+        }
+        
+        if (!isAllowed) {
+          throw new AppError("Access denied: You must be on the college campus network to mark attendance.", 403);
+        }
+      }
+    }
+
+    try {
+      await scanLimiter.check(5, authSession.user.id); // 5 scans per minute per user
+    } catch {
+      return NextResponse.json({ error: "Rate limit exceeded. Please wait a moment." }, { status: 429 });
     }
 
     const user = await prisma.user.findUnique({
@@ -18,17 +83,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const { token, deviceId } = await request.json();
+    const body = await request.json();
+    const token = body.token;
     if (!token || typeof token !== "string") {
-      return NextResponse.json({ error: "Token is required" }, { status: 400 });
+      throw new AppError("Token is required", 400);
     }
 
-    // Verify QR code token (NO LIMIT on scan count - unlimited scans allowed per valid token)
+    const cryptoModule = await import("crypto");
+    
+    // Server-side device binding
+    let deviceToken = request.cookies.get("device_token")?.value;
+    let isNewDevice = false;
+    
+    if (!deviceToken) {
+      // Generate a new random token if cookie doesn't exist
+      deviceToken = cryptoModule.randomUUID();
+      isNewDevice = true;
+    }
+
+    // We store the HASH of the token in the DB, not the token itself
+    const deviceHash = cryptoModule.createHash("sha256").update(deviceToken).digest("hex");
+
+    // Verify QR code token
     let payload: { sessionId: string };
     try {
       payload = await verifyQrToken(token);
     } catch {
-      return NextResponse.json({ error: "Invalid or expired QR code" }, { status: 400 });
+      throw new AppError("Invalid or expired QR code", 400);
     }
 
     const session = await prisma.session.findUnique({
@@ -36,12 +117,8 @@ export async function POST(request: NextRequest) {
       include: { course: true },
     });
 
-    if (!session) {
-      return NextResponse.json({ error: "Session not found" }, { status: 404 });
-    }
-
-    if (session.status !== "ACTIVE") {
-      return NextResponse.json({ error: "Session is not active" }, { status: 400 });
+    if (!session || session.status !== "ACTIVE") {
+      throw new AppError("Session is not active or not found", 400);
     }
 
     const existing = await prisma.attendanceRecord.findFirst({
@@ -49,55 +126,58 @@ export async function POST(request: NextRequest) {
     });
 
     if (existing) {
-      return NextResponse.json({ error: "Already marked" }, { status: 409 });
+      throw new AppError("Already marked", 409);
     }
 
-    // Flagging & Proxy detection logic:
+    // Flagging & Proxy detection logic using server-side device hash
     let isFlagged = false;
     let flagReason: string | undefined = undefined;
 
-    if (deviceId && typeof deviceId === "string") {
-      // Check if this same physical device was ALREADY used by a DIFFERENT student in this session
-      const sameSessionDeviceRecord = await prisma.attendanceRecord.findFirst({
-        where: {
-          sessionId: session.id,
-          deviceId: deviceId,
-          studentId: { not: user.id },
-        },
-        include: { student: { select: { name: true } } },
-      });
+    // 1. Check if this same device was ALREADY used by a DIFFERENT student in this session
+    const sameSessionDeviceRecord = await prisma.attendanceRecord.findFirst({
+      where: {
+        sessionId: session.id,
+        deviceId: deviceHash,
+        studentId: { not: user.id },
+      },
+      include: { student: { select: { name: true } } },
+    });
 
-      if (sameSessionDeviceRecord) {
-        isFlagged = true;
-        flagReason = `Proxy Flag: Phone used by multiple students (${sameSessionDeviceRecord.student.name})`;
-      }
+    if (sameSessionDeviceRecord) {
+      isFlagged = true;
+      flagReason = `Proxy Flag: Phone used by multiple students (${sameSessionDeviceRecord.student.name})`;
+    }
 
-      // Check if device is bound to another student's account
-      const otherStudent = await prisma.user.findFirst({
-        where: {
-          role: "STUDENT",
-          deviceId: deviceId,
-          id: { not: user.id },
-        },
-        select: { name: true },
-      });
+    const studentObj = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { deviceId: true },
+    });
 
-      if (otherStudent) {
-        isFlagged = true;
-        flagReason = `Proxy Flag: Phone registered to ${otherStudent.name}`;
-      }
-
-      // Bind deviceId to student user profile on first use
-      const studentObj = await prisma.user.findUnique({
+    // 2. Bind deviceId hash to student user profile on first scan
+    if (!studentObj?.deviceId) {
+      await prisma.user.update({
         where: { id: user.id },
-        select: { deviceId: true },
+        data: { deviceId: deviceHash },
       });
-      if (!studentObj?.deviceId) {
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { deviceId },
-        });
-      }
+    } else if (studentObj.deviceId !== deviceHash) {
+      // 3. Flag if the student is using a different device than their registered one
+      isFlagged = true;
+      flagReason = "Proxy Flag: Scanning from an unrecognized device";
+    }
+
+    // 4. Check if device is bound to another student's account
+    const otherStudent = await prisma.user.findFirst({
+      where: {
+        role: "STUDENT",
+        deviceId: deviceHash,
+        id: { not: user.id },
+      },
+      select: { name: true },
+    });
+
+    if (otherStudent) {
+      isFlagged = true;
+      flagReason = `Proxy Flag: Phone registered to ${otherStudent.name}`;
     }
 
     const record = await prisma.attendanceRecord.create({
@@ -106,23 +186,31 @@ export async function POST(request: NextRequest) {
         studentId: user.id,
         status: "PRESENT",
         markedById: user.id,
-        deviceId: deviceId || null,
+        deviceId: deviceHash,
         isFlagged,
         flagReason,
       },
     });
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       recordId: record.id,
       courseName: session.course.name,
       isFlagged,
       flagReason,
     });
+
+    if (isNewDevice) {
+      response.cookies.set("device_token", deviceToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 60 * 60 * 24 * 365, // 1 year
+      });
+    }
+
+    return response;
   } catch (err: unknown) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(err);
   }
 }

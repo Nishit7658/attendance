@@ -1,19 +1,10 @@
+import { requireRole } from "@/lib/api-auth";
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export async function GET() {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const currentUser = await prisma.user.findUnique({
-      where: { id: session.user.id },
-    });
-    if (currentUser?.role !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    await requireRole("ADMIN");
 
     const groups = await prisma.savedGroup.findMany({
       include: {
@@ -34,16 +25,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const currentUser = await prisma.user.findUnique({
-      where: { id: session.user.id },
-    });
-    if (currentUser?.role !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const currentUser = await requireRole("ADMIN");
 
     const { name, description, studentIds } = await request.json();
 
@@ -82,16 +64,7 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const currentUser = await prisma.user.findUnique({
-      where: { id: session.user.id },
-    });
-    if (currentUser?.role !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    await requireRole("ADMIN");
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");

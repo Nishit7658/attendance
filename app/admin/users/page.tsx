@@ -14,7 +14,7 @@ const roleBadgeVariant: Record<string, "default" | "success" | "danger" | "warni
   STUDENT: "success",
 };
 
-export default async function AdminUsersPage() {
+export default async function AdminUsersPage({ searchParams }: { searchParams: { page?: string } }) {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
@@ -24,10 +24,21 @@ export default async function AdminUsersPage() {
 
   if (currentUser?.role !== "ADMIN") redirect("/faculty/dashboard");
 
-  const users = await prisma.user.findMany({
-    select: { id: true, name: true, email: true, role: true, department: true },
-    orderBy: { name: "asc" },
-  });
+  const page = parseInt(searchParams.page || "1", 10);
+  const take = 20;
+  const skip = (page - 1) * take;
+
+  const [users, totalCount] = await Promise.all([
+    prisma.user.findMany({
+      select: { id: true, name: true, email: true, role: true, department: true },
+      orderBy: { name: "asc" },
+      skip,
+      take,
+    }),
+    prisma.user.count(),
+  ]);
+
+  const totalPages = Math.ceil(totalCount / take);
 
   return (
     <div>
@@ -46,32 +57,50 @@ export default async function AdminUsersPage() {
           </Link>
         </div>
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Department</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {users.map((user) => (
-              <TableRow key={user.id}>
-                <TableCell className="font-medium text-slate-900">{user.name}</TableCell>
-                <TableCell>{user.email}</TableCell>
-                <TableCell>
-                  <Badge variant={roleBadgeVariant[user.role]}>{user.role}</Badge>
-                </TableCell>
-                <TableCell>{user.department || "—"}</TableCell>
-                <TableCell>
-                  <UserActions userId={user.id} isStudent={user.role === "STUDENT"} />
-                </TableCell>
+        <div className="space-y-4">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead>Department</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {users.map((user) => (
+                <TableRow key={user.id}>
+                  <TableCell className="font-medium text-slate-900">{user.name}</TableCell>
+                  <TableCell>{user.email}</TableCell>
+                  <TableCell>
+                    <Badge variant={roleBadgeVariant[user.role]}>{user.role}</Badge>
+                  </TableCell>
+                  <TableCell>{user.department || "—"}</TableCell>
+                  <TableCell>
+                    <UserActions userId={user.id} isStudent={user.role === "STUDENT"} />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between border-t border-slate-200 pt-4">
+              <div className="text-sm text-slate-500">
+                Showing {skip + 1} to {Math.min(skip + take, totalCount)} of {totalCount} results
+              </div>
+              <div className="flex gap-2">
+                <Link href={`/admin/users?page=${page - 1}`} passHref>
+                  <Button variant="secondary" disabled={page <= 1}>Previous</Button>
+                </Link>
+                <Link href={`/admin/users?page=${page + 1}`} passHref>
+                  <Button variant="secondary" disabled={page >= totalPages}>Next</Button>
+                </Link>
+              </div>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

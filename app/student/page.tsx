@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { Badge } from "@/components/ui/Badge";
 
 import ChangePasswordModal from "@/components/student/ChangePasswordModal";
@@ -14,37 +15,76 @@ export default async function StudentDashboardPage() {
     where: { id: session.user.id },
   });
 
-  if (!currentUser || currentUser.role !== "STUDENT") redirect("/faculty/dashboard");
+  if (!currentUser) redirect("/login");
+  if (currentUser.role !== "STUDENT") redirect("/faculty/dashboard");
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
 
-  const [totalRecords, totalPresent, totalLate, todayRecords, courseRecords] = await Promise.all([
-    prisma.attendanceRecord.count({ where: { studentId: currentUser.id } }),
-    prisma.attendanceRecord.count({ where: { studentId: currentUser.id, status: "PRESENT" } }),
-    prisma.attendanceRecord.count({ where: { studentId: currentUser.id, status: "LATE" } }),
-    prisma.attendanceRecord.findMany({
-      where: { studentId: currentUser.id, session: { date: { gte: today, lt: tomorrow } } },
-      include: { session: { include: { course: true } } },
-      orderBy: { session: { startTime: "asc" } },
-    }),
-    prisma.attendanceRecord.findMany({
-      where: { studentId: currentUser.id },
-      include: { session: { include: { course: true } } },
-    }),
-  ]);
+  let totalRecords = 0, totalPresent = 0, totalLate = 0, totalAbsent = 0;
+  let courseRecords: Prisma.AttendanceRecordGetPayload<{ include: { session: { include: { course: true } } } }>[] = [];
+  let todaySessions: Prisma.SessionGetPayload<{ include: { course: true, attendanceRecords: true } }>[] = [];
+  
+  try {
+    // We need to fetch today's sessions for the student's division/batch separately from attendance records
+    const sessionQuery: Prisma.SessionWhereInput = { date: { gte: today, lt: tomorrow } };
+    
+    // Filter sessions by student's division and batch (via timetableEntry)
+    // For ad-hoc sessions, they might not have a timetableEntry, so we include them if course is in their branch
+    // (A simpler approach for now is to just fetch sessions for their division's timetable entries)
+    if (currentUser.divisionId) {
+      sessionQuery.OR = [
+        {
+          timetableEntry: {
+            divisionId: currentUser.divisionId,
+            OR: [
+              { batchId: null },
+              { batchId: currentUser.batchId }
+            ]
+          }
+        },
+        // Also include ad-hoc sessions for courses in their branch (optional fallback)
+        { timetableEntryId: null }
+      ];
+    }
+
+    const results = await Promise.all([
+      prisma.attendanceRecord.count({ where: { studentId: currentUser.id } }),
+      prisma.attendanceRecord.count({ where: { studentId: currentUser.id, status: "PRESENT" } }),
+      prisma.attendanceRecord.count({ where: { studentId: currentUser.id, status: "LATE" } }),
+      prisma.attendanceRecord.count({ where: { studentId: currentUser.id, status: "ABSENT" } }),
+      prisma.session.findMany({
+        where: sessionQuery,
+        include: { 
+          course: true,
+          attendanceRecords: {
+            where: { studentId: currentUser.id }
+          }
+        },
+        orderBy: { startTime: "asc" },
+      }),
+      prisma.attendanceRecord.findMany({
+        where: { studentId: currentUser.id },
+        include: { session: { include: { course: true } } },
+      }),
+    ]);
+    [totalRecords, totalPresent, totalLate, totalAbsent, todaySessions, courseRecords] = results;
+  } catch (error) {
+    console.error("Student dashboard data fetch error:", error);
+    // Graceful degradation: empty lists/stats
+  }
 
   const attendancePct = totalRecords > 0
     ? Math.round(((totalPresent + totalLate) / totalRecords) * 100)
     : 0;
 
   const stats = [
-    { label: "Overall Attendance", value: `${attendancePct}%` },
+    { label: "Overall", value: `${attendancePct}%` },
     { label: "Present", value: totalPresent },
-    { label: "Late", value: totalLate },
-    { label: "Total Sessions", value: totalRecords },
+    { label: "Absent", value: totalAbsent },
+    { label: "Total", value: totalRecords },
   ];
 
   // Per-subject breakdown
@@ -135,7 +175,7 @@ export default async function StudentDashboardPage() {
       )}
 
       <h2 className="mb-4 text-lg font-semibold text-slate-900">Today&apos;s Sessions</h2>
-      {todayRecords.length === 0 ? (
+      {todaySessions.length === 0 ? (
         <p className="text-sm text-slate-500">No sessions today.</p>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border">
@@ -148,22 +188,30 @@ export default async function StudentDashboardPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border bg-bg">
-              {todayRecords.map((record) => {
-                if (!record.session || !record.session.course) return null;
+              {todaySessions.map((sess) => {
+                const hasRecord = sess.attendanceRecords && sess.attendanceRecords.length > 0;
+                const status = hasRecord ? sess.attendanceRecords[0].status : null;
+                
                 return (
-                  <tr key={record.id} className="hover:bg-surface-hover">
+                  <tr key={sess.id} className="hover:bg-surface-hover">
                     <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-ink">
-                      {record.session.course.name}
+                      {sess.course.name}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm text-ink">
-                      {record.session.startTime
-                        ? new Date(record.session.startTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                      {sess.startTime
+                        ? new Date(sess.startTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
                         : "—"}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm">
-                      <Badge variant={record.status === "PRESENT" ? "success" : record.status === "LATE" ? "warning" : "danger"}>
-                        {record.status}
-                      </Badge>
+                      {hasRecord ? (
+                        <Badge variant={status === "PRESENT" ? "success" : status === "LATE" ? "warning" : "danger"}>
+                          {status}
+                        </Badge>
+                      ) : (
+                        <Badge variant="default" className="bg-slate-100 text-slate-600 border-slate-200">
+                          PENDING
+                        </Badge>
+                      )}
                     </td>
                   </tr>
                 );

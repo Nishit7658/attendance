@@ -4,23 +4,11 @@ import { prisma } from "@/lib/prisma";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/Table";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { cn } from "@/lib/utils";
 import { FacultyFilter } from "@/components/hod/FacultyFilter";
 
 interface PageProps {
   searchParams: { facultyId?: string };
 }
-
-function formatTime(dt: Date | null) {
-  if (!dt) return "-";
-  return dt.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
-}
-
-const statusVariant: Record<string, "success" | "danger" | "warning"> = {
-  ACTIVE: "success",
-  ENDED: "danger",
-  SCHEDULED: "warning",
-};
 
 export default async function HODSessionsPage({ searchParams }: PageProps) {
   const session = await auth();
@@ -120,4 +108,3 @@ export default async function HODSessionsPage({ searchParams }: PageProps) {
     </div>
   );
 }
-

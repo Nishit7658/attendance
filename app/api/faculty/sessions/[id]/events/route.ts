@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { generateQrToken, getQrExpiry } from "@/lib/qr-token";
+import { getSystemConfigNumber } from "@/lib/system-config";
 
 export async function GET(
   request: NextRequest,
@@ -36,7 +37,8 @@ export async function GET(
   const stream = new ReadableStream({
     start(controller) {
       let closed = false;
-      const keepAlive: ReturnType<typeof setInterval> = setInterval(() => {
+      let cleanup = () => {};
+      const keepAlive = setInterval(() => {
         if (closed) return;
         send("ping", {});
       }, 10000);
@@ -93,42 +95,43 @@ export async function GET(
       // Send the first update immediately
       tick();
 
-      const interval = setInterval(tick, 5000);
+      getSystemConfigNumber("qr_refresh_interval", 5).then((intervalSec: number) => {
+        const intervalMs = Math.max(2, intervalSec) * 1000;
+        const interval = setInterval(tick, intervalMs);
 
+        // Safety timeout — close after 55 minutes (just under serverless limit)
+        const safetyTimeout = setTimeout(() => {
+          if (!closed) cleanup();
+        }, 55 * 60 * 1000);
 
+        const onAbort = () => {
+          cleanup();
+        };
 
-      // Safety timeout — close after 55 minutes (just under serverless limit)
-      const safetyTimeout = setTimeout(() => {
-        if (!closed) cleanup();
-      }, 55 * 60 * 1000);
+        cleanup = () => {
+          if (closed) return;
+          closed = true;
+          clearInterval(interval);
+          clearInterval(keepAlive);
+          clearTimeout(safetyTimeout);
+          try {
+            request.signal.removeEventListener("abort", onAbort);
+          } catch {
+            // ignore
+          }
+          try {
+            controller.close();
+          } catch {
+            // already closed
+          }
+        };
 
-      const onAbort = () => {
-        cleanup();
-      };
-
-      const cleanup = () => {
-        if (closed) return;
-        closed = true;
-        clearInterval(interval);
-        clearInterval(keepAlive);
-        clearTimeout(safetyTimeout);
-        try {
-          request.signal.removeEventListener("abort", onAbort);
-        } catch {
-          // ignore
+        if (request.signal.aborted) {
+          cleanup();
+        } else {
+          request.signal.addEventListener("abort", onAbort, { once: true });
         }
-        try {
-          controller.close();
-        } catch {
-          // already closed
-        }
-      };
-
-      if (request.signal.aborted) {
-        cleanup();
-      } else {
-        request.signal.addEventListener("abort", onAbort, { once: true });
-      }
+      });
     },
   });
 

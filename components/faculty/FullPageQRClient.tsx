@@ -18,8 +18,6 @@ interface TokenData {
 
 export default function FullPageQRClient({
   sessionId,
-  courseName: _courseName,
-  courseCode: _courseCode,
 }: FullPageQRClientProps) {
   const router = useRouter();
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);

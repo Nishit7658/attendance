@@ -47,7 +47,7 @@ export default async function HODDashboardPage() {
           </div>
         ))}
       </div>
-      <h2 className="mb-4 text-lg font-semibold text-ink">Today's Sessions</h2>
+      <h2 className="mb-4 text-lg font-semibold text-ink">Today&apos;s Sessions</h2>
       {recentSessions.length === 0 ? (
         <p className="text-sm text-muted">No sessions scheduled today.</p>
       ) : (

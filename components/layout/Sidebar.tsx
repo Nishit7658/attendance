@@ -45,6 +45,7 @@ const navConfig: Record<Role, { items: NavItem[] }> = {
       { label: "Events", icon: CalendarRange, href: "/admin/events" },
       { label: "Saved Groups", icon: Tag, href: "/admin/saved-groups" },
       { label: "Settings", icon: Settings, href: "/admin/settings" },
+      { label: "Archive", icon: BookOpen, href: "/admin/archive" },
     ],
   },
   faculty: {

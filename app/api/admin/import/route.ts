@@ -53,6 +53,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No file provided." }, { status: 400 });
     }
 
+    const fallbackBranch = await prisma.branch.findFirst();
+    const fallbackBranchId = fallbackBranch?.id;
+
     const text = await file.text();
     const rows = parseCSV(text);
 
@@ -171,10 +174,14 @@ export async function POST(request: NextRequest) {
             name,
             department,
             credits: isNaN(credits) ? 3 : credits,
-            branchId: "default-branch-id"
+            branchId: fallbackBranchId || ""
           },
         });
 
+        if (!fallbackBranchId) {
+           results.push({ row: rowNum, status: "error", message: `No branch available to associate with course` });
+           continue;
+        }
         results.push({ row: rowNum, status: "ok", message: `Created course: ${code} - ${name}` });
       }
     }
