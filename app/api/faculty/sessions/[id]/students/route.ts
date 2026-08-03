@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireRole } from "@/lib/api-auth";
+import { AppError } from "@/lib/api-error";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(
@@ -7,18 +8,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authSession = await auth();
-    if (!authSession?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { id: authSession.user.id },
-      select: { id: true, role: true },
-    });
-    if (!user || !["FACULTY", "HOD", "ADMIN"].includes(user.role)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const user = await requireRole(["FACULTY", "HOD", "ADMIN"]);
 
     const session = await prisma.session.findUnique({
       where: { id: params.id },
@@ -63,8 +53,11 @@ export async function GET(
 
     return NextResponse.json({ students: studentsWithStatus });
   } catch (err: unknown) {
+    if (err instanceof AppError) {
+      return NextResponse.json({ error: err.message }, { status: err.statusCode });
+    }
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Internal server error" },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

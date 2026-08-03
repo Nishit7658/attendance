@@ -1,7 +1,7 @@
 import { verifyCsrfOrigin } from "@/lib/csrf";
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { auth } from "@/lib/auth";
+import { requireRole } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 
 type ImportEntity = "users" | "courses";
@@ -39,16 +39,7 @@ export async function POST(request: NextRequest) {
 
   try {
     // Auth check
-    const authSession = await auth();
-    if (!authSession?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const currentUser = await prisma.user.findUnique({
-      where: { id: authSession.user.id },
-    });
-    if (currentUser?.role !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    await requireRole("ADMIN");
 
     const formData = await request.formData();
     const entity = formData.get("entity") as ImportEntity | null;
@@ -170,6 +161,11 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
+        if (!fallbackBranchId) {
+          results.push({ row: rowNum, status: "error", message: "No branch available to associate with course" });
+          continue;
+        }
+
         const existing = await prisma.course.findUnique({ where: { code } });
         if (existing) {
           results.push({ row: rowNum, status: "skipped", message: `Duplicate code: ${code}` });
@@ -182,14 +178,10 @@ export async function POST(request: NextRequest) {
             name,
             department,
             credits: isNaN(credits) ? 3 : credits,
-            branchId: fallbackBranchId || ""
+            branchId: fallbackBranchId,
           },
         });
 
-        if (!fallbackBranchId) {
-           results.push({ row: rowNum, status: "error", message: `No branch available to associate with course` });
-           continue;
-        }
         results.push({ row: rowNum, status: "ok", message: `Created course: ${code} - ${name}` });
       }
     }

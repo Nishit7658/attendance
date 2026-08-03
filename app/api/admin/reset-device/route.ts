@@ -1,6 +1,6 @@
 import { verifyCsrfOrigin } from "@/lib/csrf";
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireRole } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(request: NextRequest) {
@@ -12,19 +12,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const authSession = await auth();
-    if (!authSession?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const currentUser = await prisma.user.findUnique({
-      where: { id: authSession.user.id },
-      select: { id: true, role: true },
-    });
-
-    if (!currentUser || !["FACULTY", "HOD", "ADMIN"].includes(currentUser.role)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    await requireRole(["FACULTY", "HOD", "ADMIN"]);
 
     const { studentId } = await request.json();
     if (!studentId || typeof studentId !== "string") {

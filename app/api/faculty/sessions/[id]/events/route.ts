@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireRole } from "@/lib/api-auth";
+import { AppError } from "@/lib/api-error";
 import { prisma } from "@/lib/prisma";
 import { generateQrToken, getQrExpiry } from "@/lib/qr-token";
 import { getSystemConfigNumber } from "@/lib/system-config";
@@ -8,17 +9,12 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const authSession = await auth();
-  if (!authSession?.user?.id) {
-    return new Response("Unauthorized", { status: 401 });
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { id: authSession.user.id },
-    select: { id: true, role: true },
-  });
-  if (!user || !["FACULTY", "HOD", "ADMIN"].includes(user.role)) {
-    return new Response("Forbidden", { status: 403 });
+  let user;
+  try {
+    user = await requireRole(["FACULTY", "HOD", "ADMIN"]);
+  } catch (err) {
+    const status = err instanceof AppError ? err.statusCode : 500;
+    return new Response(err instanceof Error ? err.message : "Unauthorized", { status });
   }
 
   const session = await prisma.session.findUnique({

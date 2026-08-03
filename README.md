@@ -44,10 +44,15 @@ npm install
 ```
 
 ### 3. Sync Database Schema
-Push the Prisma schema to your local database to create the necessary tables:
+Apply the checked-in Prisma migrations to create the necessary tables:
 ```bash
-npx prisma db push
+npx prisma migrate deploy
 ```
+
+> For a fresh local dev database you can instead use `npx prisma migrate dev` to
+> apply migrations and generate the client in one step. The initial baseline
+> migration lives in `prisma/migrations/`. Do not use `prisma db push` in
+> production.
 
 ### 4. Seed the Database
 Populate the database with sample users, timetables, and courses:

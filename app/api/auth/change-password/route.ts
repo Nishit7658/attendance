@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireAuth } from "@/lib/api-auth";
+import { AppError } from "@/lib/api-error";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import rateLimit from "@/lib/rate-limit";
@@ -12,13 +13,8 @@ export async function POST(request: NextRequest) {
     verifyCsrfOrigin(request);
 
     const ip = request.headers.get("x-forwarded-for") || request.ip || "unknown-ip";
-    const authSession = await auth();
-    const userId = authSession?.user?.id || "unauth";
-    await limiter.check(5, `${ip}-${userId}`); // 5 requests per minute
-
-    if (!authSession?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const user = await requireAuth();
+    await limiter.check(5, `${ip}-${user.id}`); // 5 requests per minute
 
     const { currentPassword, newPassword } = await request.json();
 
@@ -34,14 +30,6 @@ export async function POST(request: NextRequest) {
         { error: "New password must be at least 6 characters long" },
         { status: 400 }
       );
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { id: authSession.user.id },
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     const isValid = await bcrypt.compare(currentPassword, user.passwordHash);
@@ -65,6 +53,9 @@ export async function POST(request: NextRequest) {
   } catch (err: unknown) {
     if (err === "Rate limit exceeded") {
       return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429 });
+    }
+    if (err instanceof AppError) {
+      return NextResponse.json({ error: err.message }, { status: err.statusCode });
     }
     console.error("Change password error:", err);
     return NextResponse.json(

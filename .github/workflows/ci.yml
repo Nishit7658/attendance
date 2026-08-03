@@ -36,3 +36,63 @@ jobs:
       
     - name: Build Project
       run: npm run build
+
+  e2e:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: attendance_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/attendance_test
+      AUTH_SECRET: ci-only-secret-change-in-real-env
+      QR_SIGNING_SECRET: ci-only-qr-secret-change-in-real-env
+      AUTH_URL: http://localhost:3000
+      E2E_RUN_FULL_FLOW: "1"
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Use Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Generate Prisma Client
+      run: npx prisma generate
+
+    - name: Apply migrations
+      run: npx prisma migrate deploy
+
+    - name: Seed database
+      run: npx tsx prisma/seed.ts && npx tsx prisma/seed_ce_timetable.ts
+
+    - name: Install Playwright browsers
+      run: npx playwright install --with-deps chromium
+
+    - name: Run E2E tests
+      run: npm run test:e2e
+
+    - name: Upload Playwright report
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: playwright-report
+        path: playwright-report/
+        retention-days: 7

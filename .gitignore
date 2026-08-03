@@ -44,3 +44,9 @@ prisma/dev.db
 # Scratch files
 scratch/
 
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+

@@ -171,7 +171,7 @@ async function main() {
   });
 
   // Seed faculties
-  const passwordHash = await bcrypt.hash("password123", 10);
+  const passwordHash = await bcrypt.hash("password123", 12);
   const facultyMap = new Map<string, string>();
   for (const f of faculties) {
     const user = await prisma.user.upsert({

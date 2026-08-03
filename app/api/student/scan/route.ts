@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireRole } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { verifyQrToken } from "@/lib/qr-token";
 import rateLimit from "@/lib/rate-limit";
@@ -16,11 +16,8 @@ import { getSystemConfigBoolean, getSystemConfig } from "@/lib/system-config";
 export async function POST(request: NextRequest) {
   try {
     verifyCsrfOrigin(request);
-    
-    const authSession = await auth();
-    if (!authSession?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+
+    const user = await requireRole("STUDENT");
 
     const lanEnabled = await getSystemConfigBoolean("lan_restriction_enabled", false);
     if (lanEnabled) {
@@ -70,17 +67,9 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      await scanLimiter.check(5, authSession.user.id); // 5 scans per minute per user
+      await scanLimiter.check(5, user.id); // 5 scans per minute per user
     } catch {
       return NextResponse.json({ error: "Rate limit exceeded. Please wait a moment." }, { status: 429 });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { id: authSession.user.id },
-      select: { id: true, role: true },
-    });
-    if (!user || user.role !== "STUDENT") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const body = await request.json();

@@ -99,7 +99,7 @@ Hot-path tables have performance indexes applied in `prisma/schema.prisma`:
 - `AttendanceRecord`: indexed on `[sessionId]` and `[studentId]`
 - `Session`: indexed on `[facultyId]` and `[date]`
 
-> ⚠️ **Database Migration Note**: The production database is connected via Supabase Transaction Pooler. Avoid running `npx prisma db push` without direct database connection credentials (`DIRECT_URL`). Always test query changes locally or with a direct connection.
+> ⚠️ **Database Migration Note**: The production database is connected via Supabase Transaction Pooler. The repo now ships a committed baseline migration in `prisma/migrations/`. Apply schema changes with `npx prisma migrate dev` locally and `npx prisma migrate deploy` in production — never `prisma db push` against a shared database. Use a direct connection (`DIRECT_URL`) when creating migrations against Supabase.
 
 ---
 

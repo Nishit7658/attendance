@@ -47,7 +47,7 @@ async function main() {
   };
 
   // Admin & HOD use standard secure password
-  const adminPasswordHash = await bcrypt.hash("Admin@College2024!", 10);
+  const adminPasswordHash = await bcrypt.hash("Admin@College2024!", 12);
 
   // 1. Create Organizational Hierarchy
   const branch = await prisma.branch.upsert({
@@ -142,7 +142,7 @@ async function main() {
   for (const f of dbData.faculties) {
     const shortEmail = `${f.code.toLowerCase()}@faculty`;
     const facultyPassword = `${f.code.toUpperCase()}@Faculty2024!`;
-    const facultyPasswordHash = await bcrypt.hash(facultyPassword, 10);
+    const facultyPasswordHash = await bcrypt.hash(facultyPassword, 12);
     const user = await prisma.user.upsert({
       where: { email: shortEmail },
       update: { name: f.name, passwordHash: facultyPasswordHash },
@@ -236,7 +236,7 @@ async function main() {
     // Password: Student@ + last 4 digits + !
     const last4 = s.enrollmentNo.slice(-4);
     const studentPassword = `Student@${last4}!`;
-    const studentPasswordHash = await bcrypt.hash(studentPassword, 10);
+    const studentPasswordHash = await bcrypt.hash(studentPassword, 12);
 
     // Distribute across 4 divisions round-robin
     const divIndex = i % 4;
