@@ -57,8 +57,9 @@ export default async function SessionSummaryPage({ params }: SummaryPageProps) {
     );
   }
 
+  const recordStudentIds = dbSession.attendanceRecords.map((r) => r.studentId);
   const allStudents = await prisma.user.findMany({
-    where: { role: "STUDENT" },
+    where: { id: { in: recordStudentIds } },
     select: { id: true, name: true, email: true, enrollmentNo: true },
   });
   const studentMap = new Map(allStudents.map((s) => [s.id, s]));

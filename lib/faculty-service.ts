@@ -179,7 +179,7 @@ export async function getUnmarkedCount(sessionId: string) {
 }
 
 export async function getSessionSummary(sessionId: string) {
-  const [session, attendanceRecords, users] = await Promise.all([
+  const [session, attendanceRecords] = await Promise.all([
     prisma.session.findUnique({
       where: { id: sessionId },
       include: { course: true },
@@ -188,13 +188,15 @@ export async function getSessionSummary(sessionId: string) {
       where: { sessionId },
       include: { editLogs: { orderBy: { editedAt: "desc" } } },
     }),
-    prisma.user.findMany({
-      where: { role: "STUDENT" },
-      select: { id: true, name: true, email: true },
-    }),
   ]);
 
   if (!session) throw new Error("Session not found");
+
+  const studentIds = attendanceRecords.map((r) => r.studentId);
+  const users = await prisma.user.findMany({
+    where: { id: { in: studentIds } },
+    select: { id: true, name: true, email: true },
+  });
 
   const studentMap = new Map(users.map((u) => [u.id, u]));
   const records = attendanceRecords.map((r) => ({
