@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireRole } from "@/lib/api-auth";
 import { AppError } from "@/lib/api-error";
 import { prisma } from "@/lib/prisma";
+import { getExpectedStudentsForSession } from "@/lib/faculty-service";
 
 export async function GET(
   _request: NextRequest,
@@ -24,13 +25,9 @@ export async function GET(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Fetch all students with their attendance records and flag status for this session
+    // Fetch expected students and attendance records for this session
     const [students, records] = await Promise.all([
-      prisma.user.findMany({
-        where: { role: "STUDENT" },
-        select: { id: true, name: true, enrollmentNo: true, email: true },
-        orderBy: { name: "asc" },
-      }),
+      getExpectedStudentsForSession(params.id),
       prisma.attendanceRecord.findMany({
         where: { sessionId: params.id },
         select: { studentId: true, status: true, isFlagged: true, flagReason: true },

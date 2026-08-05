@@ -71,55 +71,77 @@ export async function startSession(timetableEntryId: string, facultyId: string, 
   });
 }
 
+export async function getExpectedStudentsForSession(sessionId: string) {
+  const session = await prisma.session.findUnique({
+    where: { id: sessionId },
+    include: {
+      timetableEntry: true,
+      course: true,
+    },
+  });
+
+  if (!session) return [];
+
+  const studentQuery: Prisma.UserWhereInput = { role: "STUDENT" };
+
+  if (session.timetableEntry) {
+    if (session.timetableEntry.divisionId) {
+      studentQuery.divisionId = session.timetableEntry.divisionId;
+    }
+    if (session.timetableEntry.batchId) {
+      studentQuery.batchId = session.timetableEntry.batchId;
+    }
+  } else if (session.course && session.course.branchId) {
+    studentQuery.branchId = session.course.branchId;
+  }
+
+  let students = await prisma.user.findMany({
+    where: studentQuery,
+    select: { id: true, name: true, enrollmentNo: true, email: true },
+    orderBy: { name: "asc" },
+  });
+
+  // Fallback: If specific filter returned 0 students, fallback to all students
+  if (students.length === 0) {
+    students = await prisma.user.findMany({
+      where: { role: "STUDENT" },
+      select: { id: true, name: true, enrollmentNo: true, email: true },
+      orderBy: { name: "asc" },
+    });
+  }
+
+  return students;
+}
+
 export async function endSession(sessionId: string, facultyId: string, bypassOwnerCheck?: boolean, autoMarkAbsent: boolean = true) {
   const session = await prisma.session.findUnique({ where: { id: sessionId } });
   if (!session) throw new Error("Session not found");
   if (!bypassOwnerCheck && session.facultyId !== facultyId) throw new Error("Unauthorized");
   if (session.status !== "ACTIVE") throw new Error("Session is not active");
 
-  // Find all students who already have a record for this session
-  const existingRecords = await prisma.attendanceRecord.findMany({
-    where: { sessionId },
-    select: { studentId: true },
-  });
-  const markedIds = new Set(existingRecords.map((r) => r.studentId));
-
-  // Determine which students should be marked absent
-  if (session.timetableEntryId && autoMarkAbsent) {
-    const entry = await prisma.timetableEntry.findUnique({
-      where: { id: session.timetableEntryId },
-      select: { divisionId: true, batchId: true }
+  if (autoMarkAbsent) {
+    // Find all students who already have a record for this session
+    const existingRecords = await prisma.attendanceRecord.findMany({
+      where: { sessionId },
+      select: { studentId: true },
     });
-    
-    if (entry) {
-      const studentQuery: Prisma.UserWhereInput = { 
-        role: "STUDENT", 
-        divisionId: entry.divisionId 
-      };
-      
-      if (entry.batchId) {
-        studentQuery.batchId = entry.batchId;
-      }
+    const markedIds = new Set(existingRecords.map((r) => r.studentId));
 
-      // Find all students in this division/batch with no record → mark them ABSENT
-      const allStudents = await prisma.user.findMany({
-        where: studentQuery,
-        select: { id: true },
+    // Get the expected student audience for this session
+    const allStudents = await getExpectedStudentsForSession(sessionId);
+    const unmarked = allStudents.filter((s) => !markedIds.has(s.id));
+
+    // Bulk-create ABSENT records for all unmarked students in the roster
+    if (unmarked.length > 0) {
+      await prisma.attendanceRecord.createMany({
+        data: unmarked.map((s) => ({
+          sessionId,
+          studentId: s.id,
+          status: "ABSENT",
+          markedById: facultyId,
+        })),
+        skipDuplicates: true,
       });
-      const unmarked = allStudents.filter((s) => !markedIds.has(s.id));
-
-      // Bulk-create ABSENT records for all unmarked students
-      if (unmarked.length > 0) {
-        await prisma.attendanceRecord.createMany({
-          data: unmarked.map((s) => ({
-            sessionId,
-            studentId: s.id,
-            status: "ABSENT",
-            markedById: facultyId,
-          })),
-          skipDuplicates: true,
-        });
-      }
     }
   }
 
@@ -131,36 +153,18 @@ export async function endSession(sessionId: string, facultyId: string, bypassOwn
 }
 
 export async function getUnmarkedCount(sessionId: string) {
-  const session = await prisma.session.findUnique({ 
-    where: { id: sessionId },
-    include: { timetableEntry: true }
-  });
-  if (!session || !session.timetableEntryId) return 0;
-  
+  const session = await prisma.session.findUnique({ where: { id: sessionId } });
+  if (!session) return 0;
+
   const existingRecords = await prisma.attendanceRecord.findMany({
     where: { sessionId },
     select: { studentId: true },
   });
   const markedIds = new Set(existingRecords.map((r) => r.studentId));
 
-  const entry = session.timetableEntry;
-  if (!entry) return 0;
-
-  const studentQuery: Prisma.UserWhereInput = { 
-    role: "STUDENT", 
-    divisionId: entry.divisionId 
-  };
-  
-  if (entry.batchId) {
-    studentQuery.batchId = entry.batchId;
-  }
-
-  const allStudents = await prisma.user.findMany({
-    where: studentQuery,
-    select: { id: true },
-  });
+  const allStudents = await getExpectedStudentsForSession(sessionId);
   const unmarked = allStudents.filter((s) => !markedIds.has(s.id));
-  
+
   return unmarked.length;
 }
 

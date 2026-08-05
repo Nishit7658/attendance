@@ -134,39 +134,37 @@ export async function POST(request: NextRequest) {
 
     if (sameSessionDeviceRecord) {
       isFlagged = true;
-      flagReason = `Proxy Flag: Phone used by multiple students (${sameSessionDeviceRecord.student.name})`;
+      flagReason = `Proxy Flag: Same phone used by multiple students in this session (${sameSessionDeviceRecord.student.name})`;
+    } else {
+      // 2. Check if this same device was used by a DIFFERENT student today in any session
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const sameDayOtherStudentRecord = await prisma.attendanceRecord.findFirst({
+        where: {
+          markedAt: { gte: today },
+          deviceId: deviceHash,
+          studentId: { not: user.id },
+        },
+        include: { student: { select: { name: true } } },
+      });
+
+      if (sameDayOtherStudentRecord) {
+        isFlagged = true;
+        flagReason = `Proxy Flag: Same phone used by ${sameDayOtherStudentRecord.student.name} today`;
+      }
     }
 
+    // Bind primary deviceId hash to student user profile on first scan if not set
     const studentObj = await prisma.user.findUnique({
       where: { id: user.id },
       select: { deviceId: true },
     });
-
-    // 2. Bind deviceId hash to student user profile on first scan
     if (!studentObj?.deviceId) {
       await prisma.user.update({
         where: { id: user.id },
         data: { deviceId: deviceHash },
       });
-    } else if (studentObj.deviceId !== deviceHash) {
-      // 3. Flag if the student is using a different device than their registered one
-      isFlagged = true;
-      flagReason = "Proxy Flag: Scanning from an unrecognized device";
-    }
-
-    // 4. Check if device is bound to another student's account
-    const otherStudent = await prisma.user.findFirst({
-      where: {
-        role: "STUDENT",
-        deviceId: deviceHash,
-        id: { not: user.id },
-      },
-      select: { name: true },
-    });
-
-    if (otherStudent) {
-      isFlagged = true;
-      flagReason = `Proxy Flag: Phone registered to ${otherStudent.name}`;
     }
 
     const record = await prisma.attendanceRecord.create({
