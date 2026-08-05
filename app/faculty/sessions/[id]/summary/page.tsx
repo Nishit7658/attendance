@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Button } from "@/components/ui/Button";
@@ -25,6 +26,13 @@ export default async function SessionSummaryPage({ params }: SummaryPageProps) {
         }
       />
     );
+  }
+
+  const authRole = session.user.role as string;
+  const authId = session.user.id as string;
+
+  if (!["FACULTY", "HOD", "ADMIN"].includes(authRole)) {
+    redirect("/error?code=unauthorized");
   }
 
   const dbSession = await prisma.session.findUnique({
@@ -55,6 +63,11 @@ export default async function SessionSummaryPage({ params }: SummaryPageProps) {
         }
       />
     );
+  }
+
+  // Faculty can only view their own sessions; HOD and ADMIN can view any
+  if (authRole === "FACULTY" && dbSession.facultyId !== authId) {
+    redirect("/error?code=unauthorized");
   }
 
   const recordStudentIds = dbSession.attendanceRecords.map((r) => r.studentId);
