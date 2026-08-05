@@ -44,7 +44,17 @@ export async function startSession(timetableEntryId: string, facultyId: string, 
   const existing = await prisma.session.findFirst({
     where: { facultyId: sessionFacultyId, status: "ACTIVE" },
   });
-  if (existing) throw new Error("An active session already exists");
+  if (existing) {
+    // If it's for the same timetable entry, simply return the existing active session
+    if (existing.timetableEntryId === timetableEntryId) {
+      return prisma.session.findUnique({
+        where: { id: existing.id },
+        include: { course: true },
+      });
+    }
+    // Otherwise, auto-end the previous active session so the user is never blocked
+    await endSession(existing.id, sessionFacultyId, true, true);
+  }
 
   const session = await prisma.$transaction(async (tx) => {
     const s = await tx.session.create({
@@ -249,13 +259,18 @@ export async function updateAttendance(
 
 export async function createAdHocSession(courseCode: string, facultyId: string) {
   const code = courseCode.trim();
-  const course = await prisma.course.findUnique({ where: { code } });
-  if (!course) throw new Error("Course not found");
+  const course = await prisma.course.findFirst({
+    where: { code: { equals: code, mode: "insensitive" } },
+  });
+  if (!course) throw new Error(`Course '${code}' not found`);
 
   const existing = await prisma.session.findFirst({
     where: { facultyId, status: "ACTIVE" },
   });
-  if (existing) throw new Error("An active session already exists");
+  if (existing) {
+    // Auto-end previous active session so user is never blocked
+    await endSession(existing.id, facultyId, true, true);
+  }
 
   const session = await prisma.$transaction(async (tx) => {
     const s = await tx.session.create({
