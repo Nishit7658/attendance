@@ -105,22 +105,11 @@ export async function getExpectedStudentsForSession(sessionId: string) {
     studentQuery.branchId = session.course.branchId;
   }
 
-  let students = await prisma.user.findMany({
+  return prisma.user.findMany({
     where: studentQuery,
     select: { id: true, name: true, enrollmentNo: true, email: true },
     orderBy: { name: "asc" },
   });
-
-  // Fallback: If specific filter returned 0 students, fallback to all students
-  if (students.length === 0) {
-    students = await prisma.user.findMany({
-      where: { role: "STUDENT" },
-      select: { id: true, name: true, enrollmentNo: true, email: true },
-      orderBy: { name: "asc" },
-    });
-  }
-
-  return students;
 }
 
 export async function endSession(sessionId: string, facultyId: string, bypassOwnerCheck?: boolean, autoMarkAbsent: boolean = true) {
