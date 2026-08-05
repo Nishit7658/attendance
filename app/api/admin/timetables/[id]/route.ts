@@ -30,7 +30,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
   await requireRole("ADMIN");
 
   try {
-    const { dayOfWeek, startTime, endTime, courseId, facultyId, room, section } = await req.json();
+    const { dayOfWeek, startTime, endTime, courseId, facultyId, room, section, divisionId } = await req.json();
 
     const existing = await prisma.timetableEntry.findUnique({ where: { id: params.id } });
     if (!existing) return NextResponse.json({ error: "Timetable entry not found" }, { status: 404 });
@@ -93,6 +93,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
         ...(facultyId !== undefined && { facultyId }),
         ...(room !== undefined && { room }),
         ...(section !== undefined && { section }),
+        ...(divisionId !== undefined && { divisionId }),
       },
       include: { course: true, faculty: { select: { id: true, name: true } } },
     });
