@@ -1,3 +1,16 @@
+/**
+ * In-memory token-bucket rate limiter.
+ *
+ * IMPORTANT — SERVERLESS LIMITATION:
+ * This implementation stores state in a module-level Map. In serverless
+ * environments (Vercel, AWS Lambda, etc.) each function instance has its
+ * own separate Map, so limits are not enforced across concurrent instances
+ * or across cold starts.
+ *
+ * For production multi-instance deployments, replace this with a shared
+ * store such as Upstash Redis (@upstash/ratelimit) to get true global
+ * rate limiting.
+ */
 interface RateLimitOptions {
   uniqueTokenPerInterval?: number;
   interval?: number; // in milliseconds
