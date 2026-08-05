@@ -10,7 +10,7 @@ export const createUserSchema = z.object({
   email: emailSchema,
   role: z.enum(["STUDENT", "FACULTY", "HOD", "ADMIN"]),
   department: z.string().optional().nullable(),
-  password: z.string().min(6, "Password must be at least 6 characters").optional(),
+  password: z.string().min(8, "Password must be at least 8 characters").optional(),
 });
 
 export const updateUserSchema = createUserSchema.partial();

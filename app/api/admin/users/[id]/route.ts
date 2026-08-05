@@ -56,8 +56,8 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
       return NextResponse.json({ error: "Name cannot be empty" }, { status: 400 });
     }
 
-    if (password && password.length < 6) {
-      return NextResponse.json({ error: "Password must be at least 6 characters" }, { status: 400 });
+    if (password && password.length < 8) {
+      return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 });
     }
 
     const data: Record<string, string | undefined> = {};
