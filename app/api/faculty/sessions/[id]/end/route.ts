@@ -18,7 +18,10 @@ export async function POST(
   try {
     const user = await requireRole(["FACULTY", "HOD", "ADMIN"]);
 
-    await endSession(params.id, user.id, user.role !== "FACULTY");
+    const body = await _request.json().catch(() => ({}));
+    const autoMarkAbsent = body.autoMarkAbsent !== false; // default true
+
+    await endSession(params.id, user.id, user.role !== "FACULTY", autoMarkAbsent);
     return NextResponse.json({
       redirect: `/faculty/sessions/${params.id}/summary`,
     });
