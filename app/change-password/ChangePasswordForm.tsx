@@ -20,8 +20,12 @@ export default function ChangePasswordForm() {
       return;
     }
 
-    if (newPassword.length < 6) {
-      setError("New password must be at least 6 characters.");
+    if (newPassword.length < 8) {
+      setError("New password must be at least 8 characters.");
+      return;
+    }
+    if (!/[0-9!@#$%^&*]/.test(newPassword)) {
+      setError("Password must contain at least one number or special character (!@#$%^&*).");
       return;
     }
 
