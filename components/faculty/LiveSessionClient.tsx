@@ -265,7 +265,7 @@ export default function LiveSessionClient({
   const timerPercent = (refreshMsLeft / 5000) * 100;
 
   const presentCount = students?.filter((s) => s.status === "PRESENT").length ?? 0;
-  const absentCount = students ? students.filter((s) => s.status === "ABSENT" || s.status === null).length : 0;
+  const absentCount = students?.filter((s) => s.status === "ABSENT").length ?? 0;
   const unmarkedRosterCount = students?.filter((s) => s.status === null).length ?? 0;
   const totalCount = students?.length ?? 0;
 
