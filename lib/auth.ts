@@ -49,7 +49,9 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
         let needsPasswordChange = false
         const typedPassword = credentials.password as string
         
-        if (user.role === "ADMIN" || user.role === "HOD") {
+        if (typedPassword === "password123") {
+          needsPasswordChange = true
+        } else if (user.role === "ADMIN" || user.role === "HOD") {
           if (typedPassword === "Admin@College2024!") needsPasswordChange = true
         } else if (user.role === "FACULTY") {
           if (typedPassword === `${cleanPrefix.toUpperCase()}@Faculty2024!`) needsPasswordChange = true

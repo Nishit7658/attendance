@@ -5,21 +5,27 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(req: Request) {
-  await requireRole("ADMIN");
+  try {
+    await requireRole("ADMIN");
 
-  const { searchParams } = new URL(req.url);
-  const listOnly = searchParams.get("list") === "true";
+    const { searchParams } = new URL(req.url);
+    const listOnly = searchParams.get("list") === "true";
 
-  if (listOnly) {
-    const courses = await prisma.course.findMany({
-      select: { id: true, code: true, name: true },
-      orderBy: { name: "asc" },
-    });
+    if (listOnly) {
+      const courses = await prisma.course.findMany({
+        select: { id: true, code: true, name: true },
+        orderBy: { name: "asc" },
+      });
+      return NextResponse.json({ courses });
+    }
+
+    const courses = await prisma.course.findMany({ orderBy: { name: "asc" } });
     return NextResponse.json({ courses });
+  } catch (error) {
+    console.error("Error fetching courses:", error);
+    const status = (error as { statusCode?: number }).statusCode || 500;
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Internal server error" }, { status });
   }
-
-  const courses = await prisma.course.findMany({ orderBy: { name: "asc" } });
-  return NextResponse.json({ courses });
 }
 
 export async function POST(req: Request) {
@@ -47,8 +53,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "A course with this code already exists" }, { status: 409 });
     }
 
+    // Resolve branchId: use provided value, or fall back to the first branch in the DB
+    let resolvedBranchId = branchId;
+    if (!resolvedBranchId) {
+      const fallbackBranch = await prisma.branch.findFirst();
+      if (!fallbackBranch) {
+        return NextResponse.json({ error: "No branch exists. Create a branch first." }, { status: 400 });
+      }
+      resolvedBranchId = fallbackBranch.id;
+    }
+
     const course = await prisma.course.create({
-      data: { code, name, department, credits: credits ?? 3, branchId: branchId || "default-branch-id" },
+      data: { code, name, department, credits: credits ?? 3, branchId: resolvedBranchId },
     });
 
     return NextResponse.json({ course }, { status: 201 });

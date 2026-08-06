@@ -140,7 +140,7 @@ async function main() {
   // 3. Create Faculty — password = Capitalized(code) + "@Faculty2024!"
   const facultyMap = new Map<string, string>();
   for (const f of dbData.faculties) {
-    const shortEmail = `${f.code.toLowerCase()}@faculty`;
+    const shortEmail = `${f.code.toLowerCase()}@faculty.college.edu`;
     const facultyPassword = `${f.code.toUpperCase()}@Faculty2024!`;
     const facultyPasswordHash = await bcrypt.hash(facultyPassword, 12);
     const user = await prisma.user.upsert({
@@ -231,7 +231,7 @@ async function main() {
 
   for (let i = 0; i < studentsData.length; i++) {
     const s = studentsData[i];
-    const email = `${s.enrollmentNo}@student`;
+    const email = `${s.enrollmentNo}@student.college.edu`;
 
     // Password: Student@ + last 4 digits + !
     const last4 = s.enrollmentNo.slice(-4);

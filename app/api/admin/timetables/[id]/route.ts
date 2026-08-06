@@ -4,19 +4,25 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
-  await requireRole("ADMIN");
+  try {
+    await requireRole("ADMIN");
 
-  const entry = await prisma.timetableEntry.findUnique({
-    where: { id: params.id },
-    include: {
-      course: { select: { id: true, code: true, name: true } },
-      faculty: { select: { id: true, name: true } },
-    },
-  });
+    const entry = await prisma.timetableEntry.findUnique({
+      where: { id: params.id },
+      include: {
+        course: { select: { id: true, code: true, name: true } },
+        faculty: { select: { id: true, name: true } },
+      },
+    });
 
-  if (!entry) return NextResponse.json({ error: "Timetable entry not found" }, { status: 404 });
+    if (!entry) return NextResponse.json({ error: "Timetable entry not found" }, { status: 404 });
 
-  return NextResponse.json({ entry });
+    return NextResponse.json({ entry });
+  } catch (error) {
+    console.error("Error fetching timetable entry:", error);
+    const status = (error as { statusCode?: number }).statusCode || 500;
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Internal server error" }, { status });
+  }
 }
 
 export async function PUT(req: Request, { params }: { params: { id: string } }) {

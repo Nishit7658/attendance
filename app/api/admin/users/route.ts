@@ -9,30 +9,36 @@ import { Role } from "@prisma/client";
 const ADMIN_ROLES: Role[] = ["STUDENT", "FACULTY", "HOD", "ADMIN"];
 
 export async function GET(req: Request) {
-  await requireRole("ADMIN");
+  try {
+    await requireRole("ADMIN");
 
-  const { searchParams } = new URL(req.url);
-  const roleFilter = searchParams.get("role");
-  const listOnly = searchParams.get("list") === "true";
+    const { searchParams } = new URL(req.url);
+    const roleFilter = searchParams.get("role");
+    const listOnly = searchParams.get("list") === "true";
 
-  const roleFilterValue = roleFilter && ADMIN_ROLES.includes(roleFilter as Role) ? roleFilter as Role : undefined;
-  const where = roleFilterValue ? { role: roleFilterValue } : {};
+    const roleFilterValue = roleFilter && ADMIN_ROLES.includes(roleFilter as Role) ? roleFilter as Role : undefined;
+    const where = roleFilterValue ? { role: roleFilterValue } : {};
 
-  if (listOnly) {
+    if (listOnly) {
+      const users = await prisma.user.findMany({
+        where,
+        select: { id: true, name: true },
+        orderBy: { name: "asc" },
+      });
+      return NextResponse.json({ users });
+    }
+
     const users = await prisma.user.findMany({
       where,
-      select: { id: true, name: true },
+      select: { id: true, name: true, email: true, role: true, department: true },
       orderBy: { name: "asc" },
     });
     return NextResponse.json({ users });
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    const status = (error as { statusCode?: number }).statusCode || 500;
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Internal server error" }, { status });
   }
-
-  const users = await prisma.user.findMany({
-    where,
-    select: { id: true, name: true, email: true, role: true, department: true },
-    orderBy: { name: "asc" },
-  });
-  return NextResponse.json({ users });
 }
 
 export async function POST(req: Request) {

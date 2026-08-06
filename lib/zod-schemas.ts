@@ -10,7 +10,7 @@ export const createUserSchema = z.object({
   email: emailSchema,
   role: z.enum(["STUDENT", "FACULTY", "HOD", "ADMIN"]),
   department: z.string().optional().nullable(),
-  password: z.string().min(6, "Password must be at least 6 characters").optional(),
+  password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
 export const updateUserSchema = createUserSchema.partial();
@@ -38,7 +38,7 @@ export const createEventSchema = z.object({
 
 // Timetable schemas
 export const createTimetableSchema = z.object({
-  dayOfWeek: z.coerce.number().int().min(1).max(7),
+  dayOfWeek: z.coerce.number().int().min(0).max(6),
   startTime: z.string(),
   endTime: z.string(),
   courseId: z.string(),
