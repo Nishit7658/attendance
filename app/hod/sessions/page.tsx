@@ -39,9 +39,14 @@ export default async function HODSessionsPage({ searchParams }: PageProps) {
     ? searchParams.facultyId
     : undefined;
 
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const todayEnd = new Date(todayStart);
+  todayEnd.setDate(todayEnd.getDate() + 1);
+
   const todaySessions = await prisma.session.findMany({
     where: {
-      date: new Date(),
+      date: { gte: todayStart, lt: todayEnd },
       faculty: { branchId: branch.id },
       ...(facultyFilter ? { facultyId: facultyFilter } : {}),
     },
