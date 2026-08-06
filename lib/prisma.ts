@@ -10,7 +10,8 @@ function getPrismaUrl(): string | undefined {
 
   // Supabase recently introduced Supavisor pooler. Port 5432 is Session mode (limit 15).
   // Port 6543 is Transaction mode (allows hundreds of clients).
-  if (url.includes("supabase.com") && url.includes(":5432")) {
+  // We should ONLY do this if they are actually using the pooler URL, not the direct db URL.
+  if (url.includes("pooler.supabase.com") && url.includes(":5432")) {
     url = url.replace(":5432", ":6543");
   }
 
