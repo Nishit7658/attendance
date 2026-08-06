@@ -2,6 +2,7 @@ import { requireRole } from "@/lib/api-auth";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
 export async function GET() {
   await requireRole("ADMIN");
 
