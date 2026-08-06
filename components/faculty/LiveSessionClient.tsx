@@ -50,6 +50,7 @@ export default function LiveSessionClient({
   const [loadingModalData, setLoadingModalData] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [nextRefresh, setNextRefresh] = useState<number | null>(null);
+  const [tokenInterval, setTokenInterval] = useState<number>(5000);
   const [rosterFilter, setRosterFilter] = useState<"ALL" | "PRESENT" | "ABSENT" | "UNMARKED">("ALL");
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -91,7 +92,10 @@ export default function LiveSessionClient({
     es.addEventListener("token", (e) => {
       try {
         const data: TokenData = JSON.parse(e.data);
-        setNextRefresh(Date.now() + 5000);
+        const received = Date.now();
+        const interval = data.expiresAt - received;
+        if (interval > 500) setTokenInterval(interval);
+        setNextRefresh(data.expiresAt);
         QRCode.toDataURL(data.token, {
           width: 512,
           margin: 1,
@@ -262,10 +266,10 @@ export default function LiveSessionClient({
 
   const refreshMsLeft = nextRefresh ? Math.max(0, nextRefresh - now) : 0;
   const refreshSecs = Math.ceil(refreshMsLeft / 1000);
-  const timerPercent = (refreshMsLeft / 5000) * 100;
+  const timerPercent = tokenInterval > 0 ? (refreshMsLeft / tokenInterval) * 100 : 0;
 
   const presentCount = students?.filter((s) => s.status === "PRESENT").length ?? 0;
-  const absentCount = students ? students.filter((s) => s.status === "ABSENT" || s.status === null).length : 0;
+  const absentCount = students?.filter((s) => s.status === "ABSENT").length ?? 0;
   const unmarkedRosterCount = students?.filter((s) => s.status === null).length ?? 0;
   const totalCount = students?.length ?? 0;
 

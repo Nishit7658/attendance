@@ -25,9 +25,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (typeof newPassword !== "string" || newPassword.length < 6) {
+    if (typeof newPassword !== "string" || newPassword.length < 8) {
       return NextResponse.json(
-        { error: "New password must be at least 6 characters long" },
+        { error: "New password must be at least 8 characters long" },
+        { status: 400 }
+      );
+    }
+    if (!/[0-9!@#$%^&*]/.test(newPassword)) {
+      return NextResponse.json(
+        { error: "Password must contain at least one number or special character (!@#$%^&*)" },
         { status: 400 }
       );
     }

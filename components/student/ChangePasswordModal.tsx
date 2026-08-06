@@ -22,8 +22,12 @@ export default function ChangePasswordModal() {
       return;
     }
 
-    if (newPassword.length < 6) {
-      setError("Password must be at least 6 characters.");
+    if (newPassword.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
+    if (!/[0-9!@#$%^&*]/.test(newPassword)) {
+      setError("Password must contain at least one number or special character (!@#$%^&*).");
       return;
     }
 
@@ -122,7 +126,7 @@ export default function ChangePasswordModal() {
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm focus:border-navy-500 focus:outline-none focus:ring-1 focus:ring-navy-500"
-                  placeholder="Min 6 characters"
+                  placeholder="Min 8 characters, include a number or symbol"
                 />
               </div>
 

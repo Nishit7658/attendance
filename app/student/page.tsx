@@ -161,10 +161,20 @@ export default async function StudentDashboardPage() {
                     <td className="whitespace-nowrap px-4 py-3 text-center text-sm text-ink">{subj.attended}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-center text-sm text-ink">{subj.total}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-center text-sm font-semibold">{pct}%</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-center text-sm">
-                      <Badge variant={isAtRisk ? "danger" : isBorderline ? "warning" : "success"}>
-                        {isAtRisk ? "At Risk" : isBorderline ? "Borderline" : "On Track"}
-                      </Badge>
+                    <td className="px-4 py-3 min-w-[120px]">
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 h-2 rounded-full bg-slate-200 overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all ${
+                              isAtRisk ? "bg-red-500" : isBorderline ? "bg-amber-500" : "bg-green-500"
+                            }`}
+                            style={{ width: `${Math.min(pct, 100)}%` }}
+                          />
+                        </div>
+                        <Badge variant={isAtRisk ? "danger" : isBorderline ? "warning" : "success"}>
+                          {isAtRisk ? "At Risk" : isBorderline ? "Borderline" : "On Track"}
+                        </Badge>
+                      </div>
                     </td>
                   </tr>
                 );

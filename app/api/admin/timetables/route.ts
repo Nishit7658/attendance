@@ -18,10 +18,10 @@ export async function POST(req: Request) {
     const rawBody = await req.json();
     const { data: parsedData, error: validationError } = validatePayload(createTimetableSchema, rawBody);
     if (validationError) return NextResponse.json({ error: validationError }, { status: 400 });
-    const { dayOfWeek, startTime, endTime, courseId, facultyId, room, section } = parsedData!;
+    const { dayOfWeek, startTime, endTime, courseId, facultyId, room, section, divisionId } = parsedData!;
 
-    if (dayOfWeek === undefined || !startTime || !endTime || !courseId || !facultyId || !room || !section) {
-      return NextResponse.json({ error: "All fields are required" }, { status: 400 });
+    if (dayOfWeek === undefined || !startTime || !endTime || !courseId || !facultyId || !room || !divisionId) {
+      return NextResponse.json({ error: "All fields except section are required" }, { status: 400 });
     }
 
     const day = Number(dayOfWeek);
@@ -71,7 +71,7 @@ export async function POST(req: Request) {
         facultyId,
         room,
         section,
-        divisionId: "default-division-id",
+        divisionId,
       },
       include: { course: true, faculty: { select: { id: true, name: true } } },
     });

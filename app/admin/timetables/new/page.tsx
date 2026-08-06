@@ -17,6 +17,12 @@ interface FacultyOption {
   name: string;
 }
 
+interface DivisionOption {
+  id: string;
+  name: string;
+  semester: { number: number; branch: { name: string } };
+}
+
 const DAY_OPTIONS = [
   { value: 0, label: "Sunday" },
   { value: 1, label: "Monday" },
@@ -33,13 +39,15 @@ export default function NewTimetableEntryPage() {
   const [error, setError] = useState("");
   const [courses, setCourses] = useState<CourseOption[]>([]);
   const [faculties, setFaculties] = useState<FacultyOption[]>([]);
+  const [divisions, setDivisions] = useState<DivisionOption[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
-      const [coursesRes, facultyRes] = await Promise.all([
+      const [coursesRes, facultyRes, divisionsRes] = await Promise.all([
         fetch("/api/admin/courses?list=true"),
         fetch("/api/admin/users?role=FACULTY&list=true"),
+        fetch("/api/admin/divisions"),
       ]);
 
       if (coursesRes.ok) {
@@ -49,6 +57,10 @@ export default function NewTimetableEntryPage() {
       if (facultyRes.ok) {
         const d = await facultyRes.json();
         setFaculties(d.users || []);
+      }
+      if (divisionsRes.ok) {
+        const d = await divisionsRes.json();
+        setDivisions(d.divisions || []);
       }
       setDataLoading(false);
     }
@@ -70,6 +82,7 @@ export default function NewTimetableEntryPage() {
       facultyId: form.get("facultyId"),
       room: form.get("room"),
       section: form.get("section"),
+      divisionId: form.get("divisionId"),
     };
 
     const res = await fetch("/api/admin/timetables", {
@@ -149,6 +162,23 @@ export default function NewTimetableEntryPage() {
             <option value="">Select faculty</option>
             {faculties.map((f) => (
               <option key={f.id} value={f.id}>{f.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="divisionId" className="text-sm font-medium text-slate-700">Division</label>
+          <select
+            id="divisionId"
+            name="divisionId"
+            required
+            className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy-500"
+          >
+            <option value="">Select division</option>
+            {divisions.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.semester.branch.name} — Sem {d.semester.number} / Div {d.name}
+              </option>
             ))}
           </select>
         </div>

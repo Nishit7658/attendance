@@ -20,11 +20,19 @@ export default async function HODDashboardPage() {
     return <p className="text-sm text-muted">No department assigned to your account.</p>;
   }
 
-  const [facultyCount, todaySessions, recentSessions] = await Promise.all([
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  const todayWhere = { date: { gte: today, lt: tomorrow }, faculty: { branchId: branch.id } };
+
+  const [facultyCount, studentCount, todaySessions, recentSessions] = await Promise.all([
     prisma.user.count({ where: { role: "FACULTY", branchId: branch.id } }),
-    prisma.session.count({ where: { date: new Date(), faculty: { branchId: branch.id } } }),
+    prisma.user.count({ where: { role: "STUDENT", branchId: branch.id } }),
+    prisma.session.count({ where: todayWhere }),
     prisma.session.findMany({
-      where: { date: new Date(), faculty: { branchId: branch.id } },
+      where: todayWhere,
       include: { course: true, faculty: true, _count: { select: { attendanceRecords: true } } },
       orderBy: { startTime: "asc" },
       take: 10,
@@ -32,7 +40,8 @@ export default async function HODDashboardPage() {
   ]);
 
   const stats = [
-    { label: "Faculty Members", value: facultyCount },
+    { label: "Faculty", value: facultyCount },
+    { label: "Students", value: studentCount },
     { label: "Today's Sessions", value: todaySessions },
   ];
 

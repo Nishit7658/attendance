@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireRole } from "@/lib/api-auth";
 import { AppError } from "@/lib/api-error";
 import { prisma } from "@/lib/prisma";
+import { getExpectedStudentsForSession } from "@/lib/faculty-service";
 
 export async function GET(
   _request: NextRequest,
@@ -39,12 +40,8 @@ export async function GET(
     dbSession.attendanceRecords.map((r) => [r.studentId, { status: r.status, markedAt: r.markedAt }])
   );
 
-  // Get ALL students so the export is complete (not just those marked)
-  const allStudents = await prisma.user.findMany({
-    where: { role: "STUDENT" },
-    select: { id: true, name: true, email: true, enrollmentNo: true },
-    orderBy: { name: "asc" },
-  });
+  // Get the expected roster for this session (filtered by division/batch/branch)
+  const allStudents = await getExpectedStudentsForSession(params.id);
 
   const escapeCsv = (v: string) => `"${v.replace(/"/g, '""')}"`;
 
