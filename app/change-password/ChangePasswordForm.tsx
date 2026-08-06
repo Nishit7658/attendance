@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { signOut } from "next-auth/react";
 
 export default function ChangePasswordForm() {
   const [currentPassword, setCurrentPassword] = useState("");
@@ -46,7 +47,7 @@ export default function ChangePasswordForm() {
         // Wait, if they call signOut(), they have to log in.
         // Actually, just calling router.refresh() might not be enough because JWT token is still the old one.
         // We'll just redirect to `/api/auth/signout` with a callbackUrl of `/login?changed=true`.
-        window.location.href = "/api/auth/signout?callbackUrl=/login?changed=true";
+        await signOut({ callbackUrl: "/login?changed=true" });
       }
     } catch (err) {
       console.error(err);
