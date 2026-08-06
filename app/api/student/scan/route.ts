@@ -136,13 +136,14 @@ export async function POST(request: NextRequest) {
       isFlagged = true;
       flagReason = `Proxy Flag: Same phone used by multiple students in this session (${sameSessionDeviceRecord.student.name})`;
     } else {
-      // 2. Check if this same device was used by a DIFFERENT student today in any session
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      // 2. Check if this same device was used by a DIFFERENT student in the last 24 hours.
+      //    Using a rolling window avoids timezone mismatches between the server clock and
+      //    the college's local time (e.g. UTC server vs IST college).
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
       const sameDayOtherStudentRecord = await prisma.attendanceRecord.findFirst({
         where: {
-          markedAt: { gte: today },
+          markedAt: { gte: oneDayAgo },
           deviceId: deviceHash,
           studentId: { not: user.id },
         },

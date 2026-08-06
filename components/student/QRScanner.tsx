@@ -230,21 +230,10 @@ export default function QRScanner() {
     setCourseName("");
 
     try {
-      let deviceId = "";
-      try {
-        deviceId = localStorage.getItem("attendance_device_id") || "";
-        if (!deviceId) {
-          deviceId = "dev_" + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
-          localStorage.setItem("attendance_device_id", deviceId);
-        }
-      } catch {
-        // ignore localStorage restriction
-      }
-
       const res = await fetch("/api/student/scan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: data, deviceId }),
+        body: JSON.stringify({ token: data }),
       });
 
       if (!activeRef.current) return;

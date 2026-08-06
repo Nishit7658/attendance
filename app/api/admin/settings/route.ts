@@ -2,6 +2,7 @@ import { verifyCsrfOrigin } from "@/lib/csrf";
 import { requireRole } from "@/lib/api-auth";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { handleApiError } from "@/lib/api-error";
 
 export async function GET() {
   try {
@@ -18,10 +19,7 @@ export async function GET() {
 
     return NextResponse.json({ settings });
   } catch (err: unknown) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(err);
   }
 }
 

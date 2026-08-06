@@ -45,10 +45,11 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
 
         if (!isValid) return null
 
-        // Detect if they are using the default seeded password
+        // Detect if they are using a default/seeded password
         let needsPasswordChange = false
         const typedPassword = credentials.password as string
-        
+
+        // CSV import default password — applies to all roles
         if (typedPassword === "password123") {
           needsPasswordChange = true
         } else if (user.role === "ADMIN" || user.role === "HOD") {

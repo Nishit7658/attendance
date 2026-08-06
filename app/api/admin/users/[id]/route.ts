@@ -25,13 +25,17 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     return NextResponse.json({ error: err.message }, { status: err.statusCode || 403 });
   }
 
-  await requireRole("ADMIN");
+  const currentUser = await requireRole("ADMIN");
 
   try {
     const { name, email, password, role, department } = await req.json();
 
     const existing = await prisma.user.findUnique({ where: { id: params.id } });
     if (!existing) return NextResponse.json({ error: "User not found" }, { status: 404 });
+
+    if (existing.id === currentUser.id && role && role !== existing.role) {
+      return NextResponse.json({ error: "Cannot change your own role" }, { status: 400 });
+    }
 
     if (email && email !== existing.email) {
       const emailTaken = await prisma.user.findUnique({ where: { email } });
@@ -52,8 +56,8 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
       return NextResponse.json({ error: "Name cannot be empty" }, { status: 400 });
     }
 
-    if (password && password.length < 6) {
-      return NextResponse.json({ error: "Password must be at least 6 characters" }, { status: 400 });
+    if (password && password.length < 8) {
+      return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 });
     }
 
     const data: Record<string, string | undefined> = {};

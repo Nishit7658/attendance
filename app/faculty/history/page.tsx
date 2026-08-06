@@ -69,6 +69,7 @@ export default async function FacultyHistoryPage({ searchParams }: PageProps) {
       include: {
         course: true,
         _count: { select: { attendanceRecords: true } },
+        attendanceRecords: { where: { isFlagged: true }, select: { id: true } },
       },
       orderBy: { date: "desc" },
       skip,
@@ -178,6 +179,7 @@ export default async function FacultyHistoryPage({ searchParams }: PageProps) {
                 <TableHead>Start Time</TableHead>
                 <TableHead>End Time</TableHead>
                 <TableHead>Students Marked</TableHead>
+                <TableHead>Flags</TableHead>
                 <TableHead>Status</TableHead>
               </tr>
             </TableHeader>
@@ -196,6 +198,13 @@ export default async function FacultyHistoryPage({ searchParams }: PageProps) {
                   <TableCell>{formatTime(s.startTime)}</TableCell>
                   <TableCell>{formatTime(s.endTime)}</TableCell>
                   <TableCell>{s._count.attendanceRecords}</TableCell>
+                  <TableCell>
+                    {s.attendanceRecords.length > 0 ? (
+                      <Badge variant="warning">{s.attendanceRecords.length} flagged</Badge>
+                    ) : (
+                      <span className="text-slate-400 text-xs">—</span>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <Badge variant="danger">ENDED</Badge>
                   </TableCell>
