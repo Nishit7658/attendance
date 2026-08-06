@@ -17,7 +17,7 @@ export default async function AdminReportsPage() {
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
-  const [totalSessionsThisMonth, totalUsers, monthlySessions] = await Promise.all([
+  const [totalSessionsThisMonth, totalUsers, monthlySessions, flaggedCount] = await Promise.all([
     prisma.session.count({
       where: { date: { gte: startOfMonth, lt: startOfNextMonth } },
     }),
@@ -31,6 +31,7 @@ export default async function AdminReportsPage() {
       },
       orderBy: { date: "asc" },
     }),
+    prisma.attendanceRecord.count({ where: { isFlagged: true } }),
   ]);
 
   let totalRecords = 0;
@@ -77,6 +78,30 @@ export default async function AdminReportsPage() {
     .sort((a, b) => b.total - a.total)
     .slice(0, 5);
 
+  // At-risk students: overall attendance < 75% with at least 5 records
+  const studentRecordCounts = await prisma.$queryRaw<
+    { studentId: string; total: number; present: number }[]
+  >`
+    SELECT ar."studentId",
+           COUNT(*) AS total,
+           SUM(CASE WHEN ar.status IN ('PRESENT','LATE') THEN 1 ELSE 0 END) AS present
+    FROM "AttendanceRecord" ar
+    GROUP BY ar."studentId"
+    HAVING COUNT(*) >= 5
+  `;
+
+  const atRiskIds = studentRecordCounts
+    .filter((r) => r.total > 0 && (Number(r.present) / Number(r.total)) < 0.75)
+    .sort((a, b) => (Number(a.present) / Number(a.total)) - (Number(b.present) / Number(b.total)))
+    .slice(0, 10);
+
+  const atRiskStudents = atRiskIds.length > 0
+    ? await prisma.user.findMany({
+        where: { id: { in: atRiskIds.map((r) => r.studentId) } },
+        select: { id: true, name: true, email: true, department: true },
+      })
+    : [];
+
   return (
     <div>
       <h1 className="mb-6 text-2xl font-bold text-navy-900">Reports</h1>
@@ -97,6 +122,10 @@ export default async function AdminReportsPage() {
         <div className="rounded-lg border border-slate-200 bg-white px-5 py-4">
           <p className="text-2xl font-semibold text-navy-700">{totalRecords}</p>
           <p className="mt-1 text-xs font-medium uppercase tracking-wider text-slate-500">Attendance Records</p>
+        </div>
+        <div className="rounded-lg border border-red-100 bg-red-50 px-5 py-4">
+          <p className="text-2xl font-semibold text-red-700">{flaggedCount}</p>
+          <p className="mt-1 text-xs font-medium uppercase tracking-wider text-red-500">Flagged (Proxy)</p>
         </div>
       </div>
 
@@ -156,6 +185,40 @@ export default async function AdminReportsPage() {
             </div>
           )}
         </div>
+      </div>
+
+      <div className="mt-8">
+        <h2 className="mb-4 text-lg font-semibold text-slate-900">At-Risk Students (Below 75%)</h2>
+        {atRiskStudents.length === 0 ? (
+          <p className="text-sm text-slate-500">No students below 75% threshold (minimum 5 sessions).</p>
+        ) : (
+          <div className="overflow-x-auto rounded-lg border border-red-200">
+            <table className="min-w-full divide-y divide-red-100">
+              <thead className="bg-red-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-red-600">Student</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-red-600">Email</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-red-600">Department</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-red-600">Attendance</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-red-100 bg-white">
+                {atRiskStudents.map((student) => {
+                  const rec = atRiskIds.find((r) => r.studentId === student.id);
+                  const pct = rec ? Math.round((Number(rec.present) / Number(rec.total)) * 100) : 0;
+                  return (
+                    <tr key={student.id} className="hover:bg-red-50">
+                      <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-slate-900">{student.name}</td>
+                      <td className="whitespace-nowrap px-4 py-3 text-sm text-slate-600">{student.email}</td>
+                      <td className="whitespace-nowrap px-4 py-3 text-sm text-slate-600">{student.department || "—"}</td>
+                      <td className="whitespace-nowrap px-4 py-3 text-sm font-semibold text-red-700">{pct}%</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
