@@ -26,17 +26,33 @@ export async function GET(
     }
 
     // Fetch expected students and attendance records for this session
-    const [students, records] = await Promise.all([
+    const [expectedStudents, records] = await Promise.all([
       getExpectedStudentsForSession(params.id),
       prisma.attendanceRecord.findMany({
         where: { sessionId: params.id },
-        select: { studentId: true, status: true, isFlagged: true, flagReason: true },
+        select: {
+          studentId: true,
+          status: true,
+          isFlagged: true,
+          flagReason: true,
+          student: { select: { id: true, name: true, enrollmentNo: true, email: true } },
+        },
       }),
     ]);
 
     const recordMap = new Map(records.map((r) => [r.studentId, r]));
+    const studentMap = new Map(expectedStudents.map((s) => [s.id, s]));
 
-    const studentsWithStatus = students.map((s) => {
+    // Include students who marked attendance even if they were outside expected division/batch
+    records.forEach((r) => {
+      if (r.student && !studentMap.has(r.studentId)) {
+        studentMap.set(r.studentId, r.student);
+      }
+    });
+
+    const allStudents = Array.from(studentMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+
+    const studentsWithStatus = allStudents.map((s) => {
       const rec = recordMap.get(s.id);
       return {
         id: s.id,

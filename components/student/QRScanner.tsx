@@ -164,16 +164,33 @@ export default function QRScanner() {
     }
   }
 
-  function scan() {
+  async function scan() {
     const video = videoRef.current;
     const canvas = canvasRef.current;
     if (!video || !canvas) return;
     if (!video.videoWidth || !video.videoHeight) return;
+
+    // Fast hardware accelerated BarcodeDetector API (Android Chrome / iOS Safari)
+    if (typeof window !== "undefined" && "BarcodeDetector" in window) {
+      try {
+        const detector = new (window as unknown as { BarcodeDetector: new (opts: { formats: string[] }) => { detect: (v: HTMLVideoElement) => Promise<{ rawValue: string }[]> } }).BarcodeDetector({
+          formats: ["qr_code"],
+        });
+        const barcodes = await detector.detect(video);
+        if (barcodes.length > 0 && barcodes[0].rawValue) {
+          handleScan(barcodes[0].rawValue);
+          return;
+        }
+      } catch {
+        // Fallback to jsQR canvas processing
+      }
+    }
+
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Downscale canvas to max 512px for instant 14x faster jsQR detection (like UPI scanners)
-    const MAX_DIM = 512;
+    // Downscale canvas to max 384px for ultra-fast instant jsQR CPU detection
+    const MAX_DIM = 384;
     let targetW = video.videoWidth;
     let targetH = video.videoHeight;
     if (targetW > MAX_DIM || targetH > MAX_DIM) {
