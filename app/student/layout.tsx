@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import AppShell from "@/components/layout/AppShell";
 
 export const metadata: Metadata = {
-  title: "Student Portal - Puff Attendance",
+  title: "Student Portal - Attendance",
 };
 
 export default function StudentLayout({ children }: { children: React.ReactNode }) {

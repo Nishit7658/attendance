@@ -1,4 +1,4 @@
-# Puff Attendance App — Build Progress
+# Attendance App — Build Progress
 
 ## Completed ✅
 

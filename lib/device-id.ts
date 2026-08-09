@@ -4,7 +4,7 @@ export function getOrCreateDeviceId(): string {
     return "server-side-no-device-id";
   }
 
-  const STORAGE_KEY = "puff_device_id";
+  const STORAGE_KEY = "attendance_device_id";
   let deviceId = localStorage.getItem(STORAGE_KEY);
 
   if (!deviceId) {

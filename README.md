@@ -30,10 +30,10 @@ Follow these steps to get the project running on your local machine.
 ### 1. Start the Database (PostgreSQL)
 You will need a PostgreSQL database. If you have Docker installed, you can spin one up instantly:
 ```bash
-docker run -d --name puff-attendance-db \
-  -e POSTGRES_USER=puff \
-  -e POSTGRES_PASSWORD=puff \
-  -e POSTGRES_DB=puff_attendance \
+docker run -d --name attendance-attendance-db \
+  -e POSTGRES_USER=attendance \
+  -e POSTGRES_PASSWORD=attendance \
+  -e POSTGRES_DB=attendance_db \
   -p 5432:5432 \
   postgres:16-alpine
 ```

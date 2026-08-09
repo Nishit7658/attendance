@@ -1,8 +1,8 @@
-# Product Review: Puff Attendance
+# Product Review: Attendance
 
 ## Executive Summary
 
-Puff Attendance is a well-architected college attendance management system built with Next.js 14, Prisma, and PostgreSQL. The core attendance loop — timetable → one-click session start → rotating QR code → student scan → attendance record — works end-to-end and is genuinely elegant. The four-portal design (Student, Faculty, HOD, Admin) with role-scoped data is clean and sensible.
+Attendance is a well-architected college attendance management system built with Next.js 14, Prisma, and PostgreSQL. The core attendance loop — timetable → one-click session start → rotating QR code → student scan → attendance record — works end-to-end and is genuinely elegant. The four-portal design (Student, Faculty, HOD, Admin) with role-scoped data is clean and sensible.
 
 However, the project is currently an **MVP with unfinished edges**. The foundational architecture is strong, but several features from the masterplan are missing, and the product isn't yet ready for real-world use at a 1000+ student college. The good news: the hardest parts (the real-time QR system, the audit trail, the role-based middleware) are already done. What remains is mostly **filling in gaps** and **polishing for real humans**.
 
@@ -92,9 +92,9 @@ However, the project is currently an **MVP with unfinished edges**. The foundati
 - Static QR (trivially proxy-able via screenshots)
 - Manual roll-call (slow, proxy-able)
 
-Puff's rotating token + server-side validation is a clever, low-cost anti-proxy solution. This is the product's strongest differentiator.
+Attendance's rotating token + server-side validation is a clever, low-cost anti-proxy solution. This is the product's strongest differentiator.
 
-**Weaknesses vs. alternatives:** Most commercial systems have CSV import, bulk operations, parent/guardian notifications, integration with existing ERP/LMS, and mobile apps. Puff is missing most of these.
+**Weaknesses vs. alternatives:** Most commercial systems have CSV import, bulk operations, parent/guardian notifications, integration with existing ERP/LMS, and mobile apps. Attendance is missing most of these.
 
 ---
 
