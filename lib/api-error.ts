@@ -23,6 +23,22 @@ export function handleApiError(error: unknown) {
     return NextResponse.json({ error: message }, { status: 400 });
   }
 
+  // Handle Prisma Known Request Errors (e.g. Unique constraint violations)
+  if (
+    error &&
+    typeof error === "object" &&
+    "code" in error &&
+    typeof (error as { code: unknown }).code === "string"
+  ) {
+    const code = (error as { code: string }).code;
+    if (code === "P2002") {
+      return NextResponse.json({ error: "Record already exists or duplicate entry." }, { status: 409 });
+    }
+    if (code === "P2025") {
+      return NextResponse.json({ error: "Record not found." }, { status: 404 });
+    }
+  }
+
   console.error("Unhandled API Error:", error);
   return NextResponse.json(
     { error: "Internal server error" },

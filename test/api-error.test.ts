@@ -48,4 +48,14 @@ describe('API Error Handling', () => {
     const data = await response.json()
     expect(data.error).toBe('Internal server error')
   })
+
+  it('handleApiError should return 409 for Prisma P2002 error', async () => {
+    const error = { code: 'P2002', message: 'Unique constraint failed' }
+    const response = handleApiError(error)
+    
+    expect(response.status).toBe(409)
+    
+    const data = await response.json()
+    expect(data.error).toBe('Record already exists or duplicate entry.')
+  })
 })
