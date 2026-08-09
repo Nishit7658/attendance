@@ -38,8 +38,8 @@ describe('QR Token Library', () => {
     const sessionId = 'test-session-456'
     const token = await generateQrToken(sessionId)
     
-    // Advance time by 16 seconds (expiry is 10s + 5s tolerance = 15s)
-    vi.advanceTimersByTime(16000)
+    // Advance time by 60 seconds (token lifetime is intervalSec + 35s + 15s tolerance)
+    vi.advanceTimersByTime(60000)
     
     await expect(verifyQrToken(token)).rejects.toThrow('"exp" claim timestamp check failed')
   })

@@ -10,15 +10,17 @@ function getSecret(): Uint8Array {
 
 export async function generateQrToken(sessionId: string, intervalSec: number = 10): Promise<string> {
   const payload = { sessionId, ts: Date.now() };
+  // Allow a 45s validity window so network latency & scan delay right before rotation don't cause false-positive expired errors
+  const validitySec = Math.max(intervalSec + 35, 45);
   return new SignJWT(payload)
     .setProtectedHeader({ alg: "HS256" })
-    .setExpirationTime(`${intervalSec}s`)
+    .setExpirationTime(`${validitySec}s`)
     .sign(getSecret());
 }
 
 export async function verifyQrToken(token: string) {
   const { payload } = await jwtVerify(token, getSecret(), {
-    clockTolerance: 5, // Tight clock tolerance
+    clockTolerance: 15, // Clock tolerance to handle minor time skews
   });
   return payload as { sessionId: string; ts: number };
 }
