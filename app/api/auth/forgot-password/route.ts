@@ -55,8 +55,7 @@ export async function POST(request: NextRequest) {
     // In production this would be sent via email transport (e.g. Resend, Nodemailer).
     // For now, log to console in dev ONLY — never in production.
     if (process.env.NODE_ENV !== "production") {
-      console.log(`[DEV] Password reset link for ${user.email}:`);
-      console.log(`[DEV] ${resetLink}`);
+      // In dev, the reset link is included in the JSON response for testing.
     }
 
     return genericOkResponse(

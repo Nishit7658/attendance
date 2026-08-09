@@ -200,6 +200,7 @@ model AttendanceRecord {
   @@index([studentId])
   @@index([deviceId, markedAt])
   @@index([markedAt])
+  @@index([sessionId, status])
 }
 
 model EditLog {

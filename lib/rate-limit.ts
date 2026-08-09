@@ -17,36 +17,34 @@ interface RateLimitOptions {
 }
 
 export default function rateLimit(options?: RateLimitOptions) {
-  const tokenCache = new Map<string, number[]>();
+  const tokenCache = new Map<string, { count: number; expiresAt: number }>();
   const uniqueTokenPerInterval = options?.uniqueTokenPerInterval || 500;
   const interval = options?.interval || 60000;
 
   return {
     check: (limit: number, token: string) =>
       new Promise<void>((resolve, reject) => {
-        const tokenCount = tokenCache.get(token) || [0];
-        if (tokenCount[0] === 0) {
+        const now = Date.now();
+        let record = tokenCache.get(token);
+
+        if (record && now > record.expiresAt) {
+          record = undefined;
+          tokenCache.delete(token);
+        }
+
+        if (!record) {
           // Bounded Map: remove oldest if we exceed capacity
           if (tokenCache.size >= uniqueTokenPerInterval) {
             const firstKey = tokenCache.keys().next().value;
             if (firstKey !== undefined) tokenCache.delete(firstKey);
           }
-          tokenCache.set(token, tokenCount);
+          record = { count: 0, expiresAt: now + interval };
+          tokenCache.set(token, record);
         }
-        tokenCount[0] += 1;
 
-        const currentUsage = tokenCount[0];
-        const isRateLimited = currentUsage > limit;
+        record.count += 1;
 
-        // Cleanup
-        setTimeout(() => {
-          tokenCount[0] -= 1;
-          if (tokenCount[0] === 0) {
-            tokenCache.delete(token);
-          }
-        }, interval);
-
-        if (isRateLimited) {
+        if (record.count > limit) {
           return reject("Rate limit exceeded");
         }
 

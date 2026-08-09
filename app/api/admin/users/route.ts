@@ -17,23 +17,40 @@ export async function GET(req: Request) {
     const listOnly = searchParams.get("list") === "true";
 
     const roleFilterValue = roleFilter && ADMIN_ROLES.includes(roleFilter as Role) ? roleFilter as Role : undefined;
-    const where = roleFilterValue ? { role: roleFilterValue } : {};
+    const search = searchParams.get("search")?.trim() || "";
+    const page = Math.max(parseInt(searchParams.get("page") || "1", 10), 1);
+    const take = Math.min(parseInt(searchParams.get("take") || "50", 10), 100);
+    const skip = (page - 1) * take;
+
+    const where: any = roleFilterValue ? { role: roleFilterValue } : {};
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: "insensitive" } },
+        { email: { contains: search, mode: "insensitive" } },
+      ];
+    }
 
     if (listOnly) {
       const users = await prisma.user.findMany({
         where,
         select: { id: true, name: true },
         orderBy: { name: "asc" },
+        take: 50, // Limit list dropdowns to 50 results
       });
       return NextResponse.json({ users });
     }
 
-    const users = await prisma.user.findMany({
-      where,
-      select: { id: true, name: true, email: true, role: true, department: true },
-      orderBy: { name: "asc" },
-    });
-    return NextResponse.json({ users });
+    const [users, total] = await Promise.all([
+      prisma.user.findMany({
+        where,
+        select: { id: true, name: true, email: true, role: true, department: true },
+        orderBy: { name: "asc" },
+        skip,
+        take,
+      }),
+      prisma.user.count({ where }),
+    ]);
+    return NextResponse.json({ users, pagination: { total, page, take, totalPages: Math.ceil(total / take) } });
   } catch (error) {
     console.error("Error fetching users:", error);
     const status = (error as { statusCode?: number }).statusCode || 500;

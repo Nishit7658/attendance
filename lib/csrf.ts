@@ -2,8 +2,10 @@
 import { AppError } from "./api-error";
 
 export function verifyCsrfOrigin(request: Request) {
-  // Only apply to POST/PUT/PATCH/DELETE
   if (["GET", "HEAD", "OPTIONS"].includes(request.method)) return;
+
+  // If the client explicitly sends x-requested-with, we trust it's not a cross-site form submission
+  if (request.headers.get("x-requested-with") === "XMLHttpRequest") return;
 
   let origin = request.headers.get("origin");
   if (!origin) {

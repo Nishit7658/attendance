@@ -8,19 +8,31 @@ export async function GET(req: Request) {
   try {
     await requireRole("ADMIN");
 
-    const { searchParams } = new URL(req.url);
+    const searchParams = new URL(req.url).searchParams;
     const listOnly = searchParams.get("list") === "true";
+    const page = Math.max(parseInt(searchParams.get("page") || "1", 10), 1);
+    const take = Math.min(parseInt(searchParams.get("take") || "50", 10), 100);
+    const skip = (page - 1) * take;
 
     if (listOnly) {
       const courses = await prisma.course.findMany({
         select: { id: true, code: true, name: true },
         orderBy: { name: "asc" },
+        take: 50,
       });
       return NextResponse.json({ courses });
     }
 
-    const courses = await prisma.course.findMany({ orderBy: { name: "asc" } });
-    return NextResponse.json({ courses });
+    const [courses, total] = await Promise.all([
+      prisma.course.findMany({
+        orderBy: { name: "asc" },
+        skip,
+        take,
+      }),
+      prisma.course.count(),
+    ]);
+
+    return NextResponse.json({ courses, pagination: { total, page, take, totalPages: Math.ceil(total / take) } });
   } catch (error) {
     console.error("Error fetching courses:", error);
     const status = (error as { statusCode?: number }).statusCode || 500;
