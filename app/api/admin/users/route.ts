@@ -22,7 +22,7 @@ export async function GET(req: Request) {
     const take = Math.min(parseInt(searchParams.get("take") || "50", 10), 100);
     const skip = (page - 1) * take;
 
-    const where: any = roleFilterValue ? { role: roleFilterValue } : {};
+    const where: import("@prisma/client").Prisma.UserWhereInput = roleFilterValue ? { role: roleFilterValue } : {};
     if (search) {
       where.OR = [
         { name: { contains: search, mode: "insensitive" } },
