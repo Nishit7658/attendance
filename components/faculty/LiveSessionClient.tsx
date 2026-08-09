@@ -146,7 +146,7 @@ export default function LiveSessionClient({
 
     const rosterPoller = setInterval(() => {
       if (mountedRef.current) fetchStudents();
-    }, 5000);
+    }, 1000);
 
     return () => {
       mountedRef.current = false;

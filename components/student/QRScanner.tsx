@@ -164,66 +164,74 @@ export default function QRScanner() {
     }
   }
 
+  const isProcessingFrame = useRef(false);
+
   async function scan() {
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    if (!video || !canvas) return;
-    if (!video.videoWidth || !video.videoHeight) return;
+    if (isProcessingFrame.current) return;
+    isProcessingFrame.current = true;
+    try {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      if (!video || !canvas) return;
+      if (!video.videoWidth || !video.videoHeight || video.readyState < 2) return;
 
-    // Fast hardware accelerated BarcodeDetector API (Android Chrome / iOS Safari)
-    if (typeof window !== "undefined" && "BarcodeDetector" in window) {
-      try {
-        const detector = new (window as unknown as { BarcodeDetector: new (opts: { formats: string[] }) => { detect: (v: HTMLVideoElement) => Promise<{ rawValue: string }[]> } }).BarcodeDetector({
-          formats: ["qr_code"],
-        });
-        const barcodes = await detector.detect(video);
-        if (barcodes.length > 0 && barcodes[0].rawValue) {
-          handleScan(barcodes[0].rawValue);
-          return;
+      // Fast hardware accelerated BarcodeDetector API (Android Chrome / iOS Safari)
+      if (typeof window !== "undefined" && "BarcodeDetector" in window) {
+        try {
+          const detector = new (window as unknown as { BarcodeDetector: new (opts: { formats: string[] }) => { detect: (v: HTMLVideoElement) => Promise<{ rawValue: string }[]> } }).BarcodeDetector({
+            formats: ["qr_code"],
+          });
+          const barcodes = await detector.detect(video);
+          if (barcodes.length > 0 && barcodes[0].rawValue) {
+            handleScan(barcodes[0].rawValue);
+            return;
+          }
+        } catch {
+          // Fallback to jsQR canvas processing
         }
-      } catch {
-        // Fallback to jsQR canvas processing
       }
-    }
 
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      if (!ctx) return;
 
-    // Downscale canvas to max 384px for ultra-fast instant jsQR CPU detection
-    const MAX_DIM = 384;
-    let targetW = video.videoWidth;
-    let targetH = video.videoHeight;
-    if (targetW > MAX_DIM || targetH > MAX_DIM) {
-      if (targetW > targetH) {
-        targetH = Math.round((targetH * MAX_DIM) / targetW);
-        targetW = MAX_DIM;
+      // Downscale canvas to max 320px for lightning-fast 2ms jsQR CPU detection
+      const MAX_DIM = 320;
+      let targetW = video.videoWidth;
+      let targetH = video.videoHeight;
+      if (targetW > MAX_DIM || targetH > MAX_DIM) {
+        if (targetW > targetH) {
+          targetH = Math.round((targetH * MAX_DIM) / targetW);
+          targetW = MAX_DIM;
+        } else {
+          targetW = Math.round((targetW * MAX_DIM) / targetH);
+          targetH = MAX_DIM;
+        }
+      }
+
+      if (canvas.width !== targetW || canvas.height !== targetH) {
+        canvas.width = targetW;
+        canvas.height = targetH;
+      }
+
+      if (!hasNativeZoom && zoom > 1) {
+        const cropW = video.videoWidth / zoom;
+        const cropH = video.videoHeight / zoom;
+        const cropX = (video.videoWidth - cropW) / 2;
+        const cropY = (video.videoHeight - cropH) / 2;
+        ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, canvas.width, canvas.height);
       } else {
-        targetW = Math.round((targetW * MAX_DIM) / targetH);
-        targetH = MAX_DIM;
+        ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight, 0, 0, canvas.width, canvas.height);
       }
-    }
 
-    if (canvas.width !== targetW || canvas.height !== targetH) {
-      canvas.width = targetW;
-      canvas.height = targetH;
-    }
-
-    if (!hasNativeZoom && zoom > 1) {
-      const cropW = video.videoWidth / zoom;
-      const cropH = video.videoHeight / zoom;
-      const cropX = (video.videoWidth - cropW) / 2;
-      const cropY = (video.videoHeight - cropH) / 2;
-      ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, canvas.width, canvas.height);
-    } else {
-      ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight, 0, 0, canvas.width, canvas.height);
-    }
-
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const code = jsQR(imageData.data, imageData.width, imageData.height, {
-      inversionAttempts: "dontInvert",
-    });
-    if (code?.data) {
-      handleScan(code.data);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(imageData.data, imageData.width, imageData.height, {
+        inversionAttempts: "dontInvert",
+      });
+      if (code?.data) {
+        handleScan(code.data);
+      }
+    } finally {
+      isProcessingFrame.current = false;
     }
   }
 
