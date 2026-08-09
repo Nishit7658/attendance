@@ -51,10 +51,6 @@ export default async function StudentDashboardPage() {
     }
 
     const results = await Promise.all([
-      prisma.attendanceRecord.count({ where: { studentId: currentUser.id } }),
-      prisma.attendanceRecord.count({ where: { studentId: currentUser.id, status: "PRESENT" } }),
-      prisma.attendanceRecord.count({ where: { studentId: currentUser.id, status: "LATE" } }),
-      prisma.attendanceRecord.count({ where: { studentId: currentUser.id, status: "ABSENT" } }),
       prisma.session.findMany({
         where: sessionQuery,
         include: { 
@@ -70,7 +66,12 @@ export default async function StudentDashboardPage() {
         include: { session: { include: { course: true } } },
       }),
     ]);
-    [totalRecords, totalPresent, totalLate, totalAbsent, todaySessions, courseRecords] = results;
+    [todaySessions, courseRecords] = results;
+
+    totalRecords = courseRecords.length;
+    totalPresent = courseRecords.filter((r) => r.status === "PRESENT").length;
+    totalLate = courseRecords.filter((r) => r.status === "LATE").length;
+    totalAbsent = courseRecords.filter((r) => r.status === "ABSENT").length;
   } catch (error) {
     console.error("Student dashboard data fetch error:", error);
     // Graceful degradation: empty lists/stats
