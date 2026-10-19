@@ -5,14 +5,68 @@ import jsQR from "jsqr";
 
 type ScanState = "loading" | "scanning" | "success" | "error" | "no-camera";
 
+/* ── Browser-native BarcodeDetector typings (not yet in lib.dom) ── */
+interface DetectedBarcode {
+  rawValue: string;
+}
+interface BarcodeDetectorLike {
+  detect: (source: CanvasImageSource) => Promise<DetectedBarcode[]>;
+}
+interface BarcodeDetectorConstructor {
+  new (options?: { formats?: string[] }): BarcodeDetectorLike;
+  getSupportedFormats?: () => Promise<string[]>;
+}
+
+/* ── Non-standard camera constraints (focus / exposure / zoom) ── */
+interface AdvancedCameraConstraint {
+  focusMode?: string;
+  exposureMode?: string;
+  zoom?: number;
+  pointsOfInterest?: { x: number; y: number }[];
+}
+interface CameraCapabilities {
+  zoom?: { min?: number; max?: number };
+  focusMode?: string[];
+  exposureMode?: string[];
+}
+
+/** Fraction of the frame (per axis) that is decoded – matches the on-screen reticle. */
+const ROI_FRACTION = 0.6;
+/** Longest side of the canvas handed to jsQR. */
+const ROI_MAX_PX = 400;
+
+function applyAdvanced(
+  track: MediaStreamTrack,
+  advanced: AdvancedCameraConstraint[]
+): void {
+  track
+    .applyConstraints({ advanced } as unknown as MediaTrackConstraints)
+    .catch(() => {
+      // Unsupported constraint – ignore.
+    });
+}
+
+function readCapabilities(track: MediaStreamTrack): CameraCapabilities {
+  try {
+    return (track.getCapabilities?.() ?? {}) as unknown as CameraCapabilities;
+  } catch {
+    return {};
+  }
+}
+
 export default function QRScanner() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stateRef = useRef<ScanState>("loading");
   const streamRef = useRef<MediaStream | null>(null);
-  const intervalRef = useRef<number | null>(null);
+  const rafRef = useRef<number | null>(null);
   const timeoutRef = useRef<number | null>(null);
+  const focusTimeoutRef = useRef<number | null>(null);
   const activeRef = useRef(true);
+  const isProcessingRef = useRef(false);
+  const detectorRef = useRef<BarcodeDetectorLike | null>(null);
+  const zoomRef = useRef(1);
+  const nativeZoomRef = useRef(false);
 
   const [state, setState] = useState<ScanState>("loading");
   const [errorMessage, setErrorMessage] = useState("");
@@ -24,21 +78,50 @@ export default function QRScanner() {
   const [minZoom, setMinZoom] = useState(1);
   const [maxZoom, setMaxZoom] = useState(4);
   const [hasNativeZoom, setHasNativeZoom] = useState(false);
-  const [focusPoint, setFocusPoint] = useState<{ x: number; y: number } | null>(null);
+  const [focusPoint, setFocusPoint] = useState<{ x: number; y: number } | null>(
+    null
+  );
+
+  function stopLoop() {
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+  }
 
   function cleanup() {
     activeRef.current = false;
-    if (intervalRef.current !== null) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
+    stopLoop();
     if (timeoutRef.current !== null) {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
     }
+    if (focusTimeoutRef.current !== null) {
+      clearTimeout(focusTimeoutRef.current);
+      focusTimeoutRef.current = null;
+    }
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
+    }
+    isProcessingRef.current = false;
+  }
+
+  /** Create the hardware-accelerated detector once (if the browser supports QR). */
+  async function initDetector(): Promise<void> {
+    detectorRef.current = null;
+    if (typeof window === "undefined") return;
+    const Ctor = (window as unknown as { BarcodeDetector?: BarcodeDetectorConstructor })
+      .BarcodeDetector;
+    if (!Ctor) return;
+    try {
+      if (Ctor.getSupportedFormats) {
+        const formats = await Ctor.getSupportedFormats();
+        if (!formats.includes("qr_code")) return;
+      }
+      detectorRef.current = new Ctor({ formats: ["qr_code"] });
+    } catch {
+      detectorRef.current = null;
     }
   }
 
@@ -51,6 +134,8 @@ export default function QRScanner() {
     }
 
     try {
+      const detectorReady = initDetector();
+
       let stream: MediaStream;
       try {
         stream = await navigator.mediaDevices.getUserMedia({
@@ -58,6 +143,7 @@ export default function QRScanner() {
             facingMode: "environment",
             width: { ideal: 1280 },
             height: { ideal: 720 },
+            frameRate: { ideal: 30 },
           },
         });
       } catch {
@@ -66,7 +152,10 @@ export default function QRScanner() {
         });
       }
 
-      if (!activeRef.current) { stream.getTracks().forEach((t) => t.stop()); return; }
+      if (!activeRef.current) {
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
 
       streamRef.current = stream;
 
@@ -74,39 +163,48 @@ export default function QRScanner() {
       if (track) {
         track.onended = () => {
           if (!activeRef.current) return;
+          stopLoop();
           setErrorMessage("Camera access was lost.");
           setState("error");
         };
 
-        // Initialize focus and zoom capabilities if supported
-        try {
-          const capabilities = (track.getCapabilities?.() || {}) as Record<string, unknown>;
-          if (capabilities.zoom) {
-            setHasNativeZoom(true);
-            setMinZoom((capabilities.zoom as { min?: number }).min || 1);
-            setMaxZoom(Math.min((capabilities.zoom as { max?: number }).max || 4, 8));
-          }
-          if (Array.isArray(capabilities.focusMode) && capabilities.focusMode.includes("continuous")) {
-            track.applyConstraints({ advanced: [{ focusMode: "continuous" } as MediaTrackConstraintSet] }).catch(() => {});
-          }
-        } catch {
-          // ignore constraint errors
+        const caps = readCapabilities(track);
+        if (caps.zoom) {
+          nativeZoomRef.current = true;
+          setHasNativeZoom(true);
+          setMinZoom(caps.zoom.min ?? 1);
+          setMaxZoom(Math.min(caps.zoom.max ?? 4, 8));
+        } else {
+          nativeZoomRef.current = false;
+          setHasNativeZoom(false);
         }
+
+        // Continuous autofocus + exposure so the camera doesn't hunt on a screen.
+        const advanced: AdvancedCameraConstraint[] = [];
+        if (!caps.focusMode || caps.focusMode.includes("continuous")) {
+          advanced.push({ focusMode: "continuous" });
+        }
+        if (!caps.exposureMode || caps.exposureMode.includes("continuous")) {
+          advanced.push({ exposureMode: "continuous" });
+        }
+        if (advanced.length > 0) applyAdvanced(track, advanced);
       }
 
-      if (!activeRef.current) { cleanup(); return; }
+      await detectorReady;
+      if (!activeRef.current) {
+        cleanup();
+        return;
+      }
 
-      setState("scanning");
       stateRef.current = "scanning";
-
-      intervalRef.current = window.setInterval(() => {
-        if (stateRef.current !== "scanning" || !activeRef.current) return;
-        scan();
-      }, 50);
+      setState("scanning");
+      startLoop();
     } catch (err: unknown) {
       if (!activeRef.current) return;
       if (err instanceof DOMException && err.name === "NotAllowedError") {
-        setErrorMessage("Camera permission denied. Allow access in your browser settings.");
+        setErrorMessage(
+          "Camera permission denied. Allow access in your browser settings."
+        );
         setState("error");
       } else if (err instanceof DOMException && err.name === "NotFoundError") {
         setState("no-camera");
@@ -117,20 +215,33 @@ export default function QRScanner() {
     }
   }
 
+  /** requestAnimationFrame loop – at most one decode in flight at any time. */
+  function startLoop() {
+    stopLoop();
+    const frame = () => {
+      if (!activeRef.current || stateRef.current !== "scanning") {
+        rafRef.current = null;
+        return;
+      }
+      if (!isProcessingRef.current) {
+        isProcessingRef.current = true;
+        void scan().finally(() => {
+          isProcessingRef.current = false;
+        });
+      }
+      rafRef.current = requestAnimationFrame(frame);
+    };
+    rafRef.current = requestAnimationFrame(frame);
+  }
+
   function handleZoomChange(newZoom: number) {
     const clamped = Math.max(minZoom, Math.min(maxZoom, newZoom));
+    zoomRef.current = clamped;
     setZoom(clamped);
 
     const track = streamRef.current?.getVideoTracks()[0];
-    if (track) {
-      try {
-        const capabilities = (track.getCapabilities?.() || {}) as Record<string, unknown>;
-        if (capabilities.zoom) {
-          track.applyConstraints({ advanced: [{ zoom: clamped } as MediaTrackConstraintSet] }).catch(() => {});
-        }
-      } catch {
-        // Fallback to digital CSS & canvas zoom
-      }
+    if (track && nativeZoomRef.current) {
+      applyAdvanced(track, [{ zoom: clamped }]);
     }
   }
 
@@ -140,108 +251,85 @@ export default function QRScanner() {
     const y = (e.clientY - rect.top) / rect.height;
 
     setFocusPoint({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-    setTimeout(() => setFocusPoint(null), 1000);
+    if (focusTimeoutRef.current !== null) clearTimeout(focusTimeoutRef.current);
+    focusTimeoutRef.current = window.setTimeout(() => setFocusPoint(null), 1000);
 
     const track = streamRef.current?.getVideoTracks()[0];
-    if (track) {
-      try {
-        const capabilities = (track.getCapabilities?.() || {}) as Record<string, unknown>;
-        const advanced: MediaTrackConstraintSet[] = [];
-        const focusModes = Array.isArray(capabilities.focusMode) ? capabilities.focusMode : [];
-        if (focusModes.includes("single-shot")) {
-          advanced.push({ focusMode: "single-shot", pointsOfInterest: [{ x, y }] } as MediaTrackConstraintSet);
-        } else if (focusModes.includes("manual")) {
-          advanced.push({ focusMode: "manual", pointsOfInterest: [{ x, y }] } as MediaTrackConstraintSet);
-        } else if (focusModes.includes("continuous")) {
-          advanced.push({ focusMode: "continuous" } as MediaTrackConstraintSet);
-        }
-        if (advanced.length > 0) {
-          track.applyConstraints({ advanced }).catch(() => {});
-        }
-      } catch {
-        // ignore
-      }
+    if (!track) return;
+    const caps = readCapabilities(track);
+    const modes = caps.focusMode ?? [];
+    if (modes.includes("single-shot")) {
+      applyAdvanced(track, [
+        { focusMode: "single-shot", pointsOfInterest: [{ x, y }] },
+      ]);
+    } else if (modes.includes("manual")) {
+      applyAdvanced(track, [
+        { focusMode: "manual", pointsOfInterest: [{ x, y }] },
+      ]);
+    } else if (modes.includes("continuous")) {
+      applyAdvanced(track, [{ focusMode: "continuous" }]);
     }
   }
 
-  const isProcessingFrame = useRef(false);
+  async function scan(): Promise<void> {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas) return;
+    if (!video.videoWidth || !video.videoHeight || video.readyState < 2) return;
 
-  async function scan() {
-    if (isProcessingFrame.current) return;
-    isProcessingFrame.current = true;
-    try {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      if (!video || !canvas) return;
-      if (!video.videoWidth || !video.videoHeight || video.readyState < 2) return;
+    const digitalZoom = !nativeZoomRef.current ? zoomRef.current : 1;
 
-      // Fast hardware accelerated BarcodeDetector API (Android Chrome / iOS Safari)
-      if (typeof window !== "undefined" && "BarcodeDetector" in window) {
-        try {
-          const detector = new (window as unknown as { BarcodeDetector: new (opts: { formats: string[] }) => { detect: (v: HTMLVideoElement) => Promise<{ rawValue: string }[]> } }).BarcodeDetector({
-            formats: ["qr_code"],
-          });
-          const barcodes = await detector.detect(video);
-          if (barcodes.length > 0 && barcodes[0].rawValue) {
-            handleScan(barcodes[0].rawValue);
-            return;
-          }
-        } catch {
-          // Fallback to jsQR canvas processing
+    // Region of interest: centre 60% of the frame (tighter when digitally zoomed).
+    const roiW = (video.videoWidth * ROI_FRACTION) / digitalZoom;
+    const roiH = (video.videoHeight * ROI_FRACTION) / digitalZoom;
+    const roiX = (video.videoWidth - roiW) / 2;
+    const roiY = (video.videoHeight - roiH) / 2;
+
+    // Output size: longest side capped at ROI_MAX_PX.
+    const scale = Math.min(1, ROI_MAX_PX / Math.max(roiW, roiH));
+    const outW = Math.max(1, Math.round(roiW * scale));
+    const outH = Math.max(1, Math.round(roiH * scale));
+    if (canvas.width !== outW || canvas.height !== outH) {
+      canvas.width = outW;
+      canvas.height = outH;
+    }
+
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return;
+    ctx.drawImage(video, roiX, roiY, roiW, roiH, 0, 0, outW, outH);
+
+    // Primary: hardware-accelerated BarcodeDetector.
+    const detector = detectorRef.current;
+    if (detector) {
+      try {
+        const codes = await detector.detect(canvas);
+        if (codes.length > 0 && codes[0].rawValue) {
+          void handleScan(codes[0].rawValue);
+          return;
         }
+        return;
+      } catch {
+        // Detector failed at runtime – permanently fall back to jsQR.
+        detectorRef.current = null;
       }
+    }
 
-      const ctx = canvas.getContext("2d", { willReadFrequently: true });
-      if (!ctx) return;
-
-      // Downscale canvas to max 320px for lightning-fast 2ms jsQR CPU detection
-      const MAX_DIM = 320;
-      let targetW = video.videoWidth;
-      let targetH = video.videoHeight;
-      if (targetW > MAX_DIM || targetH > MAX_DIM) {
-        if (targetW > targetH) {
-          targetH = Math.round((targetH * MAX_DIM) / targetW);
-          targetW = MAX_DIM;
-        } else {
-          targetW = Math.round((targetW * MAX_DIM) / targetH);
-          targetH = MAX_DIM;
-        }
-      }
-
-      if (canvas.width !== targetW || canvas.height !== targetH) {
-        canvas.width = targetW;
-        canvas.height = targetH;
-      }
-
-      if (!hasNativeZoom && zoom > 1) {
-        const cropW = video.videoWidth / zoom;
-        const cropH = video.videoHeight / zoom;
-        const cropX = (video.videoWidth - cropW) / 2;
-        const cropY = (video.videoHeight - cropH) / 2;
-        ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, canvas.width, canvas.height);
-      } else {
-        ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight, 0, 0, canvas.width, canvas.height);
-      }
-
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const code = jsQR(imageData.data, imageData.width, imageData.height, {
-        inversionAttempts: "dontInvert",
-      });
-      if (code?.data) {
-        handleScan(code.data);
-      }
-    } finally {
-      isProcessingFrame.current = false;
+    // Fallback: jsQR on the small ROI canvas.
+    const imageData = ctx.getImageData(0, 0, outW, outH);
+    const code = jsQR(imageData.data, imageData.width, imageData.height, {
+      inversionAttempts: "dontInvert",
+    });
+    if (code?.data) {
+      void handleScan(code.data);
     }
   }
 
   async function handleScan(data: string) {
-    if (!activeRef.current) return;
+    if (!activeRef.current || stateRef.current !== "scanning") return;
     stateRef.current = "success";
-    clearInterval(intervalRef.current!);
-    intervalRef.current = null;
+    stopLoop();
 
-    // Instant haptic feedback (vibration) like UPI apps
+    // Instant haptic feedback
     try {
       if (typeof navigator !== "undefined" && navigator.vibrate) {
         navigator.vibrate(100);
@@ -264,14 +352,14 @@ export default function QRScanner() {
       if (!activeRef.current) return;
 
       if (res.ok) {
-        const result = await res.json();
+        const result = (await res.json()) as { courseName?: string };
         setCourseName(result.courseName || "");
         setSuccessMessage("Attendance marked!");
         setState("success");
         timeoutRef.current = window.setTimeout(() => {
           if (!activeRef.current) return;
           stateRef.current = "loading";
-          start();
+          void start();
         }, 3000);
       } else if (res.status === 401) {
         window.location.href = "/login";
@@ -280,7 +368,7 @@ export default function QRScanner() {
         setErrorMessage("Already marked for this session.");
         setState("error");
       } else {
-        const body = await res.json().catch(() => ({}));
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
         setErrorMessage(body.error || "Invalid or expired QR code.");
         setState("error");
       }
@@ -305,9 +393,9 @@ export default function QRScanner() {
   useEffect(() => {
     activeRef.current = true;
     stateRef.current = "loading";
-    start();
+    void start();
     return cleanup;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [retryKey]);
 
   function handleRetry() {
@@ -317,6 +405,7 @@ export default function QRScanner() {
     setErrorMessage("");
     setSuccessMessage("");
     setCourseName("");
+    zoomRef.current = 1;
     setZoom(1);
     setRetryKey((k) => k + 1);
   }
@@ -349,7 +438,6 @@ export default function QRScanner() {
               muted
             />
 
-            {/* Tap Focus Ring Animation */}
             {focusPoint && (
               <div
                 className="pointer-events-none absolute h-12 w-12 rounded-full border-2 border-yellow-400 animate-ping -translate-x-1/2 -translate-y-1/2"
@@ -372,7 +460,6 @@ export default function QRScanner() {
             </p>
           </div>
 
-          {/* Zoom Controls */}
           <div className="flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
             <div className="flex items-center justify-between text-xs font-medium text-slate-700">
               <span>Zoom</span>
@@ -419,19 +506,11 @@ export default function QRScanner() {
               stroke="currentColor"
               strokeWidth={2.5}
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M4.5 12.75l6 6 9-13.5"
-              />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
             </svg>
           </div>
-          <p className="text-lg font-semibold text-green-800">
-            {successMessage}
-          </p>
-          {courseName && (
-            <p className="mt-1 text-sm text-green-600">{courseName}</p>
-          )}
+          <p className="text-lg font-semibold text-green-800">{successMessage}</p>
+          {courseName && <p className="mt-1 text-sm text-green-600">{courseName}</p>}
           <p className="mt-4 text-xs text-green-500">Returning to scanner...</p>
         </div>
       )}

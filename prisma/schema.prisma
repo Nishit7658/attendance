@@ -174,8 +174,8 @@ model Session {
   faculty           User               @relation("FacultySession", fields: [facultyId], references: [id], onDelete: Cascade)
   attendanceRecords AttendanceRecord[]
 
-  @@index([facultyId])
-  @@index([date])
+  @@index([date, status])
+  @@index([facultyId, date])
 }
 
 model AttendanceRecord {
@@ -196,11 +196,10 @@ model AttendanceRecord {
   editLogs EditLog[]
 
   @@unique([sessionId, studentId])
-  @@index([sessionId])
-  @@index([studentId])
+  @@index([sessionId, status])
+  @@index([studentId, sessionId])
   @@index([deviceId, markedAt])
   @@index([markedAt])
-  @@index([sessionId, status])
 }
 
 model EditLog {

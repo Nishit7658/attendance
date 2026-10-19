@@ -17,16 +17,40 @@ interface TokenData {
 }
 
 
+type MarkStatus = "PRESENT" | "ABSENT" | "LATE";
+
 interface StudentStatus {
   id: string;
   name: string;
   rollNo: string;
-  status: string | null;
+  status: MarkStatus | null;
   isFlagged?: boolean;
   flagReason?: string | null;
 }
 
-type MarkStatus = "PRESENT" | "ABSENT" | "LATE";
+interface RosterEvent {
+  students: StudentStatus[];
+}
+
+interface StudentMarkedEvent {
+  type: "student_marked";
+  student: StudentStatus;
+}
+
+/** Insert or replace one student in the sorted roster. */
+function upsertStudent(
+  prev: StudentStatus[] | null,
+  incoming: StudentStatus
+): StudentStatus[] {
+  if (!prev) return [incoming];
+  const idx = prev.findIndex((s) => s.id === incoming.id);
+  if (idx === -1) {
+    return [...prev, incoming].sort((a, b) => a.name.localeCompare(b.name));
+  }
+  const next = prev.slice();
+  next[idx] = { ...prev[idx], ...incoming };
+  return next;
+}
 
 export default function LiveSessionClient({
   sessionId,
@@ -57,20 +81,8 @@ export default function LiveSessionClient({
   const reconnectAttemptRef = useRef(0);
   const mountedRef = useRef(true);
   const qrImgRef = useRef<HTMLImageElement>(null);
-
-  const fetchStudents = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/faculty/sessions/${sessionId}/students`);
-      if (res.ok) {
-        const data = await res.json();
-        if (mountedRef.current) {
-          setStudents(data.students);
-        }
-      }
-    } catch {
-      // silently fail
-    }
-  }, [sessionId]);
+  const studentsRef = useRef<StudentStatus[] | null>(null);
+  studentsRef.current = students;
 
   const connect = useCallback(() => {
     if (!mountedRef.current) return;
@@ -86,8 +98,28 @@ export default function LiveSessionClient({
     es.onopen = () => {
       reconnectAttemptRef.current = 0;
       setConnected(true);
-      fetchStudents();
     };
+
+    // Full roster arrives inside the stream on every (re)connect.
+    es.addEventListener("roster", (e: MessageEvent<string>) => {
+      try {
+        const data = JSON.parse(e.data) as RosterEvent;
+        if (mountedRef.current) setStudents(data.students);
+      } catch {
+        // ignore parse errors
+      }
+    });
+
+    // Per-student delta pushed directly – no extra HTTP request.
+    es.addEventListener("student_marked", (e: MessageEvent<string>) => {
+      try {
+        const data = JSON.parse(e.data) as StudentMarkedEvent;
+        if (!mountedRef.current) return;
+        setStudents((prev) => upsertStudent(prev, data.student));
+      } catch {
+        // ignore parse errors
+      }
+    });
 
     es.addEventListener("token", (e) => {
       try {
@@ -101,14 +133,6 @@ export default function LiveSessionClient({
           margin: 1,
           color: { dark: "#1e293b", light: "#ffffff" },
         }).then(setQrDataUrl);
-      } catch {
-        // ignore parse errors
-      }
-    });
-
-    es.addEventListener("attendance", () => {
-      try {
-        fetchStudents();
       } catch {
         // ignore parse errors
       }
@@ -134,7 +158,7 @@ export default function LiveSessionClient({
         connect();
       }, delay);
     };
-  }, [sessionId, router, fetchStudents]);
+  }, [sessionId, router]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -144,18 +168,13 @@ export default function LiveSessionClient({
       if (mountedRef.current) setNow(Date.now());
     }, 100);
 
-    const rosterPoller = setInterval(() => {
-      if (mountedRef.current) fetchStudents();
-    }, 1000);
-
     return () => {
       mountedRef.current = false;
       clearInterval(timer);
-      clearInterval(rosterPoller);
       if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
       eventSourceRef.current?.close();
     };
-  }, [connect, fetchStudents]);
+  }, [connect]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -218,6 +237,13 @@ export default function LiveSessionClient({
     async (studentId: string, status: MarkStatus) => {
       setMarkingId(studentId);
       setError(null);
+
+      const previousStatus: MarkStatus | null =
+        studentsRef.current?.find((s) => s.id === studentId)?.status ?? null;
+      setStudents((prev) =>
+        prev ? prev.map((s) => (s.id === studentId ? { ...s, status } : s)) : prev
+      );
+
       try {
         const res = await fetch(
           `/api/faculty/sessions/${sessionId}/attendance/${studentId}`,
@@ -228,22 +254,24 @@ export default function LiveSessionClient({
           }
         );
         if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
+          const data = (await res.json().catch(() => ({}))) as { error?: string };
           throw new Error(data.error || "Failed to mark student");
         }
+        // Authoritative state is pushed back through the SSE stream.
+      } catch (err: unknown) {
         setStudents((prev) =>
           prev
-            ? prev.map((s) => (s.id === studentId ? { ...s, status } : s))
+            ? prev.map((s) =>
+                s.id === studentId ? { ...s, status: previousStatus } : s
+              )
             : prev
         );
-        await fetchStudents();
-      } catch (err: unknown) {
         setError(err instanceof Error ? err.message : "An error occurred");
       } finally {
         setMarkingId(null);
       }
     },
-    [sessionId, fetchStudents]
+    [sessionId]
   );
 
   const handlePrintQR = useCallback(() => {
@@ -268,14 +296,15 @@ export default function LiveSessionClient({
   const refreshSecs = Math.ceil(refreshMsLeft / 1000);
   const timerPercent = tokenInterval > 0 ? (refreshMsLeft / tokenInterval) * 100 : 0;
 
-  const presentCount = students?.filter((s) => s.status === "PRESENT").length ?? 0;
+  const isAttended = (s: StudentStatus) => s.status === "PRESENT" || s.status === "LATE";
+  const presentCount = students?.filter(isAttended).length ?? 0;
   const absentCount = students?.filter((s) => s.status === "ABSENT").length ?? 0;
   const unmarkedRosterCount = students?.filter((s) => s.status === null).length ?? 0;
   const totalCount = students?.length ?? 0;
 
   const filteredStudents = students?.filter((s) => {
     if (rosterFilter === "ALL") return true;
-    if (rosterFilter === "PRESENT") return s.status === "PRESENT";
+    if (rosterFilter === "PRESENT") return isAttended(s);
     if (rosterFilter === "ABSENT") return s.status === "ABSENT";
     if (rosterFilter === "UNMARKED") return s.status === null;
     return true;
@@ -284,7 +313,7 @@ export default function LiveSessionClient({
   const FILTER_TABS: { label: string; value: "ALL" | "PRESENT" | "ABSENT" | "UNMARKED"; count: number | null }[] = [
     { label: "All", value: "ALL", count: totalCount },
     { label: "Present", value: "PRESENT", count: presentCount },
-    { label: "Absent", value: "ABSENT", count: students ? absentCount - unmarkedRosterCount : null },
+    { label: "Absent", value: "ABSENT", count: students ? absentCount : null },
     { label: "Unmarked", value: "UNMARKED", count: unmarkedRosterCount },
   ];
 

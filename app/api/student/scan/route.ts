@@ -5,6 +5,7 @@ import { verifyQrToken } from "@/lib/qr-token";
 import rateLimit from "@/lib/rate-limit";
 import { AppError, handleApiError } from "@/lib/api-error";
 import { verifyCsrfOrigin } from "@/lib/csrf";
+import { publishAttendanceChange } from "@/lib/attendance-events";
 const scanLimiter = rateLimit({
   uniqueTokenPerInterval: 500,
   interval: 60000,
@@ -179,6 +180,9 @@ export async function POST(request: NextRequest) {
         flagReason,
       },
     });
+
+    // Push to the faculty live screen immediately (same-instance fast path).
+    publishAttendanceChange(session.id);
 
     const response = NextResponse.json({
       success: true,

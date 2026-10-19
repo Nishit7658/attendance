@@ -4,6 +4,24 @@ import { AppError } from "@/lib/api-error";
 import { prisma } from "@/lib/prisma";
 import { generateQrToken, getQrExpiry } from "@/lib/qr-token";
 import { getSystemConfigNumber } from "@/lib/system-config";
+import { subscribeAttendanceChange } from "@/lib/attendance-events";
+import {
+  buildSessionRoster,
+  type RosterStatus,
+  type RosterStudent,
+} from "@/lib/session-roster";
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+/** How often the DB is checked for attendance changes (cross-instance safety net). */
+const ATTENDANCE_POLL_MS = 400;
+
+interface KnownRecord {
+  status: RosterStatus;
+  isFlagged: boolean;
+  flagReason: string | null;
+}
 
 export async function GET(
   request: NextRequest,
@@ -14,11 +32,15 @@ export async function GET(
     user = await requireRole(["FACULTY", "HOD", "ADMIN"]);
   } catch (err) {
     const status = err instanceof AppError ? err.statusCode : 500;
-    return new Response(err instanceof Error ? err.message : "Unauthorized", { status });
+    return new Response(
+      err instanceof Error ? err.message : "Unauthorized",
+      { status }
+    );
   }
 
   const session = await prisma.session.findUnique({
     where: { id: params.id },
+    select: { id: true, facultyId: true },
   });
   if (!session) {
     return new Response("Session not found", { status: 404 });
@@ -28,114 +50,223 @@ export async function GET(
     return new Response("Forbidden", { status: 403 });
   }
 
+  const sessionId = params.id;
   const encoder = new TextEncoder();
+  const intervalSec = await getSystemConfigNumber("qr_refresh_interval", 5);
 
-  const stream = new ReadableStream({
-    start(controller) {
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
       let closed = false;
-      let cleanup = () => {};
-      const keepAlive = setInterval(() => {
-        if (closed) return;
-        send("ping", {});
-      }, 10000);
+      let polling = false;
+      let pollAgain = false;
 
-      const send = (event: string, data: unknown) => {
+      const timers: {
+        keepAlive?: ReturnType<typeof setInterval>;
+        token?: ReturnType<typeof setInterval>;
+        attendance?: ReturnType<typeof setInterval>;
+        safety?: ReturnType<typeof setTimeout>;
+      } = {};
+      let unsubscribe: (() => void) | null = null;
+
+      // Last known state per student, used to compute deltas.
+      const known = new Map<string, KnownRecord>();
+      // Student identity cache so deltas don't need a join on every poll.
+      const identity = new Map<string, { name: string; rollNo: string }>();
+
+      const send = (event: string, data: unknown): void => {
         if (closed) return;
         try {
-          const message = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-          controller.enqueue(encoder.encode(message));
+          controller.enqueue(
+            encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
+          );
         } catch {
-          // stream closed
+          // stream already closed
         }
       };
 
-      getSystemConfigNumber("qr_refresh_interval", 5).then((intervalSec: number) => {
-        const tick = async () => {
-          try {
-            const current = await prisma.session.findUnique({
-              where: { id: params.id },
+      const cleanup = (): void => {
+        if (closed) return;
+        closed = true;
+        if (timers.keepAlive) clearInterval(timers.keepAlive);
+        if (timers.token) clearInterval(timers.token);
+        if (timers.attendance) clearInterval(timers.attendance);
+        if (timers.safety) clearTimeout(timers.safety);
+        if (unsubscribe) unsubscribe();
+        request.signal.removeEventListener("abort", cleanup);
+        try {
+          controller.close();
+        } catch {
+          // already closed
+        }
+      };
+
+      const sendToken = async (): Promise<void> => {
+        try {
+          const current = await prisma.session.findUnique({
+            where: { id: sessionId },
+            select: { status: true },
+          });
+          if (!current || current.status !== "ACTIVE") {
+            send("session-ended", {});
+            cleanup();
+            return;
+          }
+          const token = await generateQrToken(sessionId, intervalSec);
+          send("token", { token, expiresAt: getQrExpiry(intervalSec) });
+        } catch (err) {
+          console.error("SSE token error for session", sessionId, err);
+        }
+      };
+
+      const pollAttendance = async (): Promise<void> => {
+        if (closed) return;
+        // Coalesce overlapping triggers into one extra pass.
+        if (polling) {
+          pollAgain = true;
+          return;
+        }
+        polling = true;
+        try {
+          do {
+            pollAgain = false;
+            const rows = await prisma.attendanceRecord.findMany({
+              where: { sessionId },
+              select: {
+                studentId: true,
+                status: true,
+                isFlagged: true,
+                flagReason: true,
+              },
             });
 
-            if (!current || current.status !== "ACTIVE") {
-              send("session-ended", {});
-              cleanup();
-              return;
+            const changed = rows.filter((r) => {
+              const prev = known.get(r.studentId);
+              return (
+                !prev ||
+                prev.status !== r.status ||
+                prev.isFlagged !== r.isFlagged ||
+                prev.flagReason !== r.flagReason
+              );
+            });
+
+            const unknownIds = changed
+              .map((r) => r.studentId)
+              .filter((id) => !identity.has(id));
+            if (unknownIds.length > 0) {
+              const users = await prisma.user.findMany({
+                where: { id: { in: unknownIds } },
+                select: { id: true, name: true, enrollmentNo: true, email: true },
+              });
+              for (const u of users) {
+                identity.set(u.id, {
+                  name: u.name,
+                  rollNo: u.enrollmentNo ?? u.email,
+                });
+              }
             }
 
-            const token = await generateQrToken(params.id, intervalSec);
-            const expiresAt = getQrExpiry(intervalSec);
-            send("token", { token, expiresAt });
+            for (const r of changed) {
+              known.set(r.studentId, {
+                status: r.status,
+                isFlagged: r.isFlagged,
+                flagReason: r.flagReason,
+              });
+              const who = identity.get(r.studentId);
+              const student: RosterStudent = {
+                id: r.studentId,
+                name: who?.name ?? "Unknown Student",
+                rollNo: who?.rollNo ?? r.studentId,
+                status: r.status,
+                isFlagged: r.isFlagged,
+                flagReason: r.flagReason,
+              };
+              send("student_marked", { type: "student_marked", student });
+            }
 
-            const records = await prisma.attendanceRecord.findMany({
-              where: { sessionId: params.id },
-            });
-            const present = records.filter(
-              (r) => r.status === "PRESENT"
-            ).length;
-            const late = records.filter(
-              (r) => r.status === "LATE"
-            ).length;
-            const absent = records.filter(
-              (r) => r.status === "ABSENT"
-            ).length;
-            send("attendance", {
-              present,
-              late,
-              absent,
-              total: records.length,
-            });
-          } catch (err) {
-            console.error("SSE error for session", params.id, err);
-          }
-        };
-
-        // Send the first update immediately
-        tick();
-
-        const intervalMs = Math.max(2, intervalSec) * 1000;
-        const interval = setInterval(tick, intervalMs);
-
-        // Safety timeout — close after 55 minutes (just under serverless limit)
-        const safetyTimeout = setTimeout(() => {
-          if (!closed) cleanup();
-        }, 55 * 60 * 1000);
-
-        const onAbort = () => {
-          cleanup();
-        };
-
-        cleanup = () => {
-          if (closed) return;
-          closed = true;
-          clearInterval(interval);
-          clearInterval(keepAlive);
-          clearTimeout(safetyTimeout);
-          try {
-            request.signal.removeEventListener("abort", onAbort);
-          } catch {
-            // ignore
-          }
-          try {
-            controller.close();
-          } catch {
-            // already closed
-          }
-        };
-
-        if (request.signal.aborted) {
-          cleanup();
-        } else {
-          request.signal.addEventListener("abort", onAbort, { once: true });
+            // Records that disappeared (e.g. deleted) revert to unmarked.
+            const liveIds = new Set(rows.map((r) => r.studentId));
+            for (const id of Array.from(known.keys())) {
+              if (liveIds.has(id)) continue;
+              known.delete(id);
+              const who = identity.get(id);
+              send("student_marked", {
+                type: "student_marked",
+                student: {
+                  id,
+                  name: who?.name ?? "Unknown Student",
+                  rollNo: who?.rollNo ?? id,
+                  status: null,
+                  isFlagged: false,
+                  flagReason: null,
+                } satisfies RosterStudent,
+              });
+            }
+          } while (pollAgain && !closed);
+        } catch (err) {
+          console.error("SSE attendance error for session", sessionId, err);
+        } finally {
+          polling = false;
         }
+      };
+
+      if (request.signal.aborted) {
+        cleanup();
+        return;
+      }
+      request.signal.addEventListener("abort", cleanup, { once: true });
+
+      // Keep-alive ping
+      timers.keepAlive = setInterval(() => send("ping", {}), 10_000);
+
+      // Safety timeout — close after 55 minutes (just under serverless limit)
+      timers.safety = setTimeout(cleanup, 55 * 60 * 1000);
+
+      // 1) Initial full roster in the stream itself (no extra HTTP round trip).
+      try {
+        const roster = await buildSessionRoster(sessionId);
+        for (const s of roster) {
+          identity.set(s.id, { name: s.name, rollNo: s.rollNo });
+          if (s.status !== null) {
+            known.set(s.id, {
+              status: s.status,
+              isFlagged: s.isFlagged,
+              flagReason: s.flagReason,
+            });
+          }
+        }
+        send("roster", { students: roster });
+      } catch (err) {
+        console.error("SSE roster error for session", sessionId, err);
+      }
+
+      // 2) QR token immediately + on every rotation.
+      void sendToken();
+      timers.token = setInterval(
+        () => void sendToken(),
+        Math.max(2, intervalSec) * 1000
+      );
+
+      // 3) Attendance deltas: instant nudge from same-instance writes plus a
+      //    fast poll for writes handled by other instances.
+      unsubscribe = subscribeAttendanceChange(sessionId, () => {
+        void pollAttendance();
       });
+      timers.attendance = setInterval(
+        () => void pollAttendance(),
+        ATTENDANCE_POLL_MS
+      );
+    },
+    cancel() {
+      // Client disconnected; abort listener in start() performs cleanup.
     },
   });
 
   return new Response(stream, {
     headers: {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
+      "Content-Type": "text/event-stream; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform",
       Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
     },
   });
 }

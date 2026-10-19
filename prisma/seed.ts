@@ -32,6 +32,16 @@ interface TimetableEntrySeed {
   room: string;
 }
 
+interface StudentSeed {
+  sNo: number;
+  name: string;
+  enrollmentNo: string;
+}
+
+// students.json is dealt round-robin across CE 1..CE 4; CE 4 is the 4th slot.
+const DIVISION_COUNT = 4;
+const CE4_INDEX = 3;
+
 function timeToDate(time: string): Date {
   return new Date(`1970-01-01T${time}:00.000Z`);
 }
@@ -208,41 +218,39 @@ async function main() {
     }
   }
 
-  // 6. Create Students — password = "Student@" + last 4 digits + "!"
-  //    Distribute evenly across CE 1, CE 2, CE 3, CE 4
+  // 6. Create Students — CE 4 ONLY
+  //    password = "Student@" + last 4 digits + "!"
+  //
+  //    students.json is one flat list. Historically it was dealt out round-robin
+  //    across CE 1..CE 4 (index % 4), so CE 4 is index % 4 === 3. That exact mapping
+  //    (and the batch formula) is preserved here so existing CE 4 accounts keep the
+  //    same division/batch and the prune script and seed always agree.
+  //    CE 1-3 divisions, batches and timetables above are still created.
   await prisma.attendanceRecord.deleteMany();
   await prisma.session.deleteMany();
 
   const studentsPath = path.join(__dirname, "students.json");
-  const studentsData = JSON.parse(fs.readFileSync(studentsPath, "utf-8")) as {
-    sNo: number;
-    name: string;
-    enrollmentNo: string;
-  }[];
+  const studentsData = JSON.parse(fs.readFileSync(studentsPath, "utf-8")) as StudentSeed[];
 
-  // Build batch maps for all divisions
-  const divBatchMaps: { div: typeof division; batches: (string | undefined)[] }[] = [];
-  for (const div of allDivisions) {
-    const bA = await prisma.batch.findUnique({ where: { name_divisionId: { name: "A", divisionId: div.id } } });
-    const bB = await prisma.batch.findUnique({ where: { name_divisionId: { name: "B", divisionId: div.id } } });
-    const bC = await prisma.batch.findUnique({ where: { name_divisionId: { name: "C", divisionId: div.id } } });
-    divBatchMaps.push({ div, batches: [bA?.id, bB?.id, bC?.id] });
-  }
+  const ce4Batches = await prisma.batch.findMany({
+    where: { divisionId: div4.id, name: { in: ["A", "B", "C"] } },
+    orderBy: { name: "asc" },
+  });
+  const ce4BatchIds: (string | undefined)[] = ["A", "B", "C"].map(
+    (n) => ce4Batches.find((b) => b.name === n)?.id
+  );
 
+  let ce4Count = 0;
   for (let i = 0; i < studentsData.length; i++) {
+    if (i % DIVISION_COUNT !== CE4_INDEX) continue; // not a CE 4 student
+
     const s = studentsData[i];
     const email = `${s.enrollmentNo}@student.college.edu`;
 
     // Password: Student@ + last 4 digits + !
     const last4 = s.enrollmentNo.slice(-4);
-    const studentPassword = `Student@${last4}!`;
-    const studentPasswordHash = await bcrypt.hash(studentPassword, 12);
-
-    // Distribute across 4 divisions round-robin
-    const divIndex = i % 4;
-    const { div, batches } = divBatchMaps[divIndex];
-    // Assign batch within the division
-    const batchId = batches[Math.floor(i / 4) % 3];
+    const studentPasswordHash = await bcrypt.hash(`Student@${last4}!`, 12);
+    const batchId = ce4BatchIds[Math.floor(i / DIVISION_COUNT) % 3] ?? null;
 
     await prisma.user.upsert({
       where: { email },
@@ -250,8 +258,8 @@ async function main() {
         name: s.name,
         enrollmentNo: s.enrollmentNo,
         passwordHash: studentPasswordHash,
-        divisionId: div.id,
-        batchId: batchId ?? null,
+        divisionId: div4.id,
+        batchId,
         semesterId: semester.id,
       },
       create: {
@@ -262,11 +270,13 @@ async function main() {
         passwordHash: studentPasswordHash,
         branchId: branch.id,
         semesterId: semester.id,
-        divisionId: div.id,
-        batchId: batchId ?? null,
+        divisionId: div4.id,
+        batchId,
       },
     });
+    ce4Count++;
   }
+  console.log(`Seeded ${ce4Count} CE 4 students.`);
 
   // Remove old demo student@college.edu (all students now use enrollment emails)
   await prisma.user.deleteMany({ where: { email: "student@college.edu" } });
