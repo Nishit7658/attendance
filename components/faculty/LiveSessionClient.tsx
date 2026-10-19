@@ -151,9 +151,13 @@ export default function LiveSessionClient({
               const existing = prevMap.get(fetchedStudent.id);
               mergedMap.set(fetchedStudent.id, {
                 ...fetchedStudent,
-                status: fetchedStudent.status ?? existing?.status ?? null,
+                status:
+                  existing?.status !== undefined && existing?.status !== null
+                    ? existing.status
+                    : (fetchedStudent.status ?? null),
                 isFlagged: Boolean(fetchedStudent.isFlagged || existing?.isFlagged),
-                flagReason: fetchedStudent.flagReason ?? existing?.flagReason ?? null,
+                flagReason:
+                  existing?.flagReason ?? fetchedStudent.flagReason ?? null,
               });
             }
 
@@ -238,6 +242,17 @@ export default function LiveSessionClient({
       }
     });
 
+    es.addEventListener("roster", (e: MessageEvent<string>) => {
+      try {
+        const payload = JSON.parse(e.data) as StudentsApiResponse;
+        if (Array.isArray(payload.students) && payload.students.length > 0) {
+          applyStudentDeltas(payload.students);
+        }
+      } catch {
+        // Ignore malformed roster event
+      }
+    });
+
     es.addEventListener("session-ended", () => {
       if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
       es.close();
@@ -262,6 +277,7 @@ export default function LiveSessionClient({
 
   useEffect(() => {
     mountedRef.current = true;
+    void fetchStudents();
     connect();
 
     const timer = setInterval(() => {
@@ -274,7 +290,7 @@ export default function LiveSessionClient({
       if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
       eventSourceRef.current?.close();
     };
-  }, [connect]);
+  }, [connect, fetchStudents]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

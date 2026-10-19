@@ -85,7 +85,12 @@ export async function getExpectedStudentsForSession(sessionId: string) {
   const session = await prisma.session.findUnique({
     where: { id: sessionId },
     include: {
-      timetableEntry: true,
+      timetableEntry: {
+        include: {
+          division: true,
+          batch: true,
+        },
+      },
       course: true,
     },
   });
@@ -105,12 +110,85 @@ export async function getExpectedStudentsForSession(sessionId: string) {
     studentQuery.branchId = session.course.branchId;
   }
 
-  return prisma.user.findMany({
+  let students = await prisma.user.findMany({
     where: studentQuery,
     select: { id: true, name: true, enrollmentNo: true, email: true },
     orderBy: { name: "asc" },
   });
 
+  // Fallback: If initial query returned 0 students (e.g., timetable entry belongs to a pruned/empty division like CE 1, CE 2, CE 3)
+  if (students.length === 0) {
+    // 1. First fallback: Division "CE 4"
+    const ce4Division = await prisma.division.findFirst({
+      where: { name: "CE 4" },
+      select: { id: true },
+    });
+
+    if (ce4Division) {
+      const ce4Query: Prisma.UserWhereInput = {
+        role: "STUDENT",
+        divisionId: ce4Division.id,
+      };
+
+      // If a batch was specified, try to find the corresponding batch in CE 4
+      if (session.timetableEntry?.batchId) {
+        const entryBatch = await prisma.batch.findUnique({
+          where: { id: session.timetableEntry.batchId },
+          select: { name: true },
+        });
+        if (entryBatch) {
+          const ce4Batch = await prisma.batch.findFirst({
+            where: { divisionId: ce4Division.id, name: entryBatch.name },
+            select: { id: true },
+          });
+          if (ce4Batch) {
+            ce4Query.batchId = ce4Batch.id;
+          }
+        }
+      }
+
+      students = await prisma.user.findMany({
+        where: ce4Query,
+        select: { id: true, name: true, enrollmentNo: true, email: true },
+        orderBy: { name: "asc" },
+      });
+    }
+
+    // 2. Second fallback: Any division with enrolled students
+    if (students.length === 0) {
+      const activeDivision = await prisma.division.findFirst({
+        where: { users: { some: { role: "STUDENT" } } },
+        select: { id: true },
+      });
+      if (activeDivision) {
+        students = await prisma.user.findMany({
+          where: { role: "STUDENT", divisionId: activeDivision.id },
+          select: { id: true, name: true, enrollmentNo: true, email: true },
+          orderBy: { name: "asc" },
+        });
+      }
+    }
+
+    // 3. Third fallback: Course branch
+    if (students.length === 0 && session.course?.branchId) {
+      students = await prisma.user.findMany({
+        where: { role: "STUDENT", branchId: session.course.branchId },
+        select: { id: true, name: true, enrollmentNo: true, email: true },
+        orderBy: { name: "asc" },
+      });
+    }
+
+    // 4. Ultimate fallback: All enrolled students
+    if (students.length === 0) {
+      students = await prisma.user.findMany({
+        where: { role: "STUDENT" },
+        select: { id: true, name: true, enrollmentNo: true, email: true },
+        orderBy: { name: "asc" },
+      });
+    }
+  }
+
+  return students;
 }
 
 export async function endSession(sessionId: string, facultyId: string, bypassOwnerCheck?: boolean, autoMarkAbsent: boolean = true) {

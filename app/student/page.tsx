@@ -45,7 +45,15 @@ export default async function StudentDashboardPage() {
             ]
           }
         },
-        // Also include ad-hoc sessions for courses in their branch (optional fallback)
+        // Also include sessions whose timetable division has no enrolled students (e.g. pruned CE 1/2/3)
+        {
+          timetableEntry: {
+            division: {
+              users: { none: { role: "STUDENT" } }
+            }
+          }
+        },
+        // Also include ad-hoc sessions
         { timetableEntryId: null }
       ];
     }

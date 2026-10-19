@@ -4,6 +4,7 @@ import { AppError } from "@/lib/api-error";
 import { prisma } from "@/lib/prisma";
 import { generateQrToken, getQrExpiry } from "@/lib/qr-token";
 import { getSystemConfigNumber } from "@/lib/system-config";
+import { buildSessionRoster } from "@/lib/session-roster";
 
 interface StudentDelta {
   id: string;
@@ -189,8 +190,20 @@ export async function GET(
             }
           };
 
-          // Execute initial token emission & attendance check immediately
+          const pushInitialRoster = async () => {
+            if (closed) return;
+            try {
+              const fullRoster = await buildSessionRoster(params.id);
+              if (closed) return;
+              send("roster", { students: fullRoster });
+            } catch (err) {
+              console.error("SSE roster push error for session", params.id, err);
+            }
+          };
+
+          // Execute initial token emission, roster push & attendance check immediately
           void rotateTokenTick();
+          void pushInitialRoster();
           void checkAttendanceDeltas();
 
           const tokenIntervalMs = Math.max(2, intervalSec) * 1000;
