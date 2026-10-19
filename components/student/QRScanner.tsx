@@ -46,8 +46,8 @@ interface ScanSuccessResponse {
   error?: string;
 }
 
-const ROI_RATIO = 0.6;
-const SCAN_CANVAS_SIZE = 400;
+const ROI_RATIO = 0.75;
+const SCAN_CANVAS_SIZE = 480;
 
 export default function QRScanner() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -313,7 +313,7 @@ export default function QRScanner() {
         }
       }
 
-      // 2. Secondary Fallback: Center 60% ROI cropped to 400x400 canvas for jsQR
+      // 2. Secondary Fallback: Distortion-free square ROI crop to 480x480 canvas for jsQR
       const ctx = canvas.getContext("2d", { willReadFrequently: true });
       if (!ctx) return;
 
@@ -327,20 +327,18 @@ export default function QRScanner() {
       const effectiveZoom =
         !hasNativeZoomRef.current && zoomRef.current > 1 ? zoomRef.current : 1;
 
-      // Crop to center 60% bounding box (where the target reticle sits), adjusted for digital zoom
-      const baseRoiWidth = vw * ROI_RATIO;
-      const baseRoiHeight = vh * ROI_RATIO;
-      const cropW = Math.max(1, Math.round(baseRoiWidth / effectiveZoom));
-      const cropH = Math.max(1, Math.round(baseRoiHeight / effectiveZoom));
-      const cropX = Math.round((vw - cropW) / 2);
-      const cropY = Math.round((vh - cropH) / 2);
+      // Extract a true 1:1 square crop from the video feed so aspect ratio is 100% distortion-free
+      const minDimension = Math.min(vw, vh);
+      const cropSize = Math.max(1, Math.round((minDimension * ROI_RATIO) / effectiveZoom));
+      const cropX = Math.round((vw - cropSize) / 2);
+      const cropY = Math.round((vh - cropSize) / 2);
 
       ctx.drawImage(
         video,
         cropX,
         cropY,
-        cropW,
-        cropH,
+        cropSize,
+        cropSize,
         0,
         0,
         SCAN_CANVAS_SIZE,
@@ -348,9 +346,28 @@ export default function QRScanner() {
       );
 
       const imageData = ctx.getImageData(0, 0, SCAN_CANVAS_SIZE, SCAN_CANVAS_SIZE);
-      const code = jsQR(imageData.data, imageData.width, imageData.height, {
-        inversionAttempts: "dontInvert",
+      let code = jsQR(imageData.data, imageData.width, imageData.height, {
+        inversionAttempts: "attemptBoth",
       });
+
+      // If not detected in center square, try full-frame with preserved aspect ratio
+      if (!code?.data) {
+        const FULL_TARGET = 360;
+        const aspect = vw / vh;
+        const targetW = aspect >= 1 ? Math.round(FULL_TARGET * aspect) : FULL_TARGET;
+        const targetH = aspect >= 1 ? FULL_TARGET : Math.round(FULL_TARGET / aspect);
+
+        if (canvas.width !== targetW || canvas.height !== targetH) {
+          canvas.width = targetW;
+          canvas.height = targetH;
+        }
+
+        ctx.drawImage(video, 0, 0, vw, vh, 0, 0, targetW, targetH);
+        const fullImageData = ctx.getImageData(0, 0, targetW, targetH);
+        code = jsQR(fullImageData.data, fullImageData.width, fullImageData.height, {
+          inversionAttempts: "dontInvert",
+        });
+      }
 
       if (code?.data) {
         void handleScan(code.data);

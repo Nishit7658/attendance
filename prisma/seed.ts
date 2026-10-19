@@ -382,7 +382,7 @@ async function main() {
     { key: "lan_allowed_ips", value: "" },
     { key: "academic_year", value: new Date().getFullYear().toString() },
     { key: "min_attendance_percentage", value: "75" },
-    { key: "qr_refresh_interval", value: "3" },
+    { key: "qr_refresh_interval", value: "5" },
   ];
 
   for (const cfg of defaultConfig) {
