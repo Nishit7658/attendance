@@ -52,6 +52,7 @@ model Semester {
   users     User[]
 
   @@unique([number, branchId])
+  @@index([branchId])
 }
 
 model Division {
@@ -117,6 +118,10 @@ model User {
 
   @@index([role])
   @@index([department])
+  @@index([branchId])
+  @@index([semesterId])
+  @@index([divisionId])
+  @@index([batchId])
 }
 
 model Course {
@@ -130,6 +135,8 @@ model Course {
   branch           Branch            @relation(fields: [branchId], references: [id])
   timetableEntries TimetableEntry[]
   sessions         Session[]
+
+  @@index([branchId])
 }
 
 model TimetableEntry {
@@ -152,6 +159,8 @@ model TimetableEntry {
 
   @@index([facultyId, dayOfWeek])
   @@index([divisionId])
+  @@index([courseId])
+  @@index([batchId])
 }
 
 model Session {
@@ -176,6 +185,8 @@ model Session {
 
   @@index([date, status])
   @@index([facultyId, date])
+  @@index([courseId])
+  @@index([timetableEntryId])
 }
 
 model AttendanceRecord {
@@ -200,6 +211,7 @@ model AttendanceRecord {
   @@index([studentId, sessionId])
   @@index([deviceId, markedAt])
   @@index([markedAt])
+  @@index([markedById])
 }
 
 model EditLog {
@@ -213,6 +225,9 @@ model EditLog {
 
   attendanceRecord AttendanceRecord @relation(fields: [attendanceRecordId], references: [id], onDelete: Cascade)
   editedBy         User             @relation("EditedBy", fields: [editedById], references: [id])
+
+  @@index([attendanceRecordId])
+  @@index([editedById])
 }
 
 model SystemConfig {
@@ -243,6 +258,9 @@ model Event {
   scopeItems  EventScopeItem[]
   savedGroup  SavedGroup?      @relation(fields: [savedGroupId], references: [id])
   savedGroupId String?
+
+  @@index([createdById])
+  @@index([savedGroupId])
 }
 
 model EventScopeItem {
@@ -255,6 +273,7 @@ model EventScopeItem {
 
   @@unique([eventId, studentId])
   @@index([studentId])
+  @@index([eventId])
 }
 
 model SavedGroup {
@@ -267,6 +286,8 @@ model SavedGroup {
   createdBy User              @relation("SavedGroupCreator", fields: [createdById], references: [id])
   members   SavedGroupMember[]
   events    Event[]
+
+  @@index([createdById])
 }
 
 model SavedGroupMember {
@@ -278,4 +299,6 @@ model SavedGroupMember {
   student    User       @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@unique([savedGroupId, studentId])
+  @@index([savedGroupId])
+  @@index([studentId])
 }
