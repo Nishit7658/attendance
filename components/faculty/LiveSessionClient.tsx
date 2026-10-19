@@ -16,41 +16,40 @@ interface TokenData {
   expiresAt: number;
 }
 
-
-type MarkStatus = "PRESENT" | "ABSENT" | "LATE";
-
 interface StudentStatus {
   id: string;
   name: string;
   rollNo: string;
-  status: MarkStatus | null;
+  status: string | null;
   isFlagged?: boolean;
   flagReason?: string | null;
 }
 
-interface RosterEvent {
+interface StudentMarkedEventPayload {
+  type?: string;
+  student?: StudentStatus | null;
+  students?: StudentStatus[];
+  present?: number;
+  late?: number;
+  absent?: number;
+  total?: number;
+}
+
+interface StudentsApiResponse {
   students: StudentStatus[];
 }
 
-interface StudentMarkedEvent {
-  type: "student_marked";
-  student: StudentStatus;
+interface UnmarkedCountResponse {
+  count: number;
+  isAdHoc: boolean;
 }
 
-/** Insert or replace one student in the sorted roster. */
-function upsertStudent(
-  prev: StudentStatus[] | null,
-  incoming: StudentStatus
-): StudentStatus[] {
-  if (!prev) return [incoming];
-  const idx = prev.findIndex((s) => s.id === incoming.id);
-  if (idx === -1) {
-    return [...prev, incoming].sort((a, b) => a.name.localeCompare(b.name));
-  }
-  const next = prev.slice();
-  next[idx] = { ...prev[idx], ...incoming };
-  return next;
+interface EndSessionResponse {
+  redirect: string;
+  error?: string;
 }
+
+type MarkStatus = "PRESENT" | "ABSENT" | "LATE";
 
 export default function LiveSessionClient({
   sessionId,
@@ -65,7 +64,7 @@ export default function LiveSessionClient({
   const [ending, setEnding] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [markingId, setMarkingId] = useState<string | null>(null);
-  
+
   // End session modal state
   const [showEndModal, setShowEndModal] = useState(false);
   const [unmarkedCount, setUnmarkedCount] = useState<number | null>(null);
@@ -75,14 +74,105 @@ export default function LiveSessionClient({
   const [now, setNow] = useState(Date.now());
   const [nextRefresh, setNextRefresh] = useState<number | null>(null);
   const [tokenInterval, setTokenInterval] = useState<number>(5000);
-  const [rosterFilter, setRosterFilter] = useState<"ALL" | "PRESENT" | "ABSENT" | "UNMARKED">("ALL");
+  const [rosterFilter, setRosterFilter] = useState<
+    "ALL" | "PRESENT" | "ABSENT" | "UNMARKED"
+  >("ALL");
+
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectAttemptRef = useRef(0);
   const mountedRef = useRef(true);
   const qrImgRef = useRef<HTMLImageElement>(null);
-  const studentsRef = useRef<StudentStatus[] | null>(null);
-  studentsRef.current = students;
+
+  const applyStudentDeltas = useCallback((incomingList: StudentStatus[]) => {
+    if (incomingList.length === 0) return;
+
+    setStudents((prev) => {
+      if (!prev) {
+        return [...incomingList].sort((a, b) => a.name.localeCompare(b.name));
+      }
+
+      const next = [...prev];
+      const indexById = new Map<string, number>();
+      next.forEach((s, idx) => indexById.set(s.id, idx));
+
+      let addedNew = false;
+
+      for (const incoming of incomingList) {
+        const existingIdx = indexById.get(incoming.id);
+        if (existingIdx !== undefined) {
+          const current = next[existingIdx];
+          next[existingIdx] = {
+            ...current,
+            name: incoming.name || current.name,
+            rollNo: incoming.rollNo || current.rollNo,
+            status: incoming.status,
+            isFlagged: incoming.isFlagged ?? current.isFlagged ?? false,
+            flagReason:
+              incoming.flagReason !== undefined
+                ? incoming.flagReason
+                : (current.flagReason ?? null),
+          };
+        } else {
+          next.push({
+            id: incoming.id,
+            name: incoming.name,
+            rollNo: incoming.rollNo,
+            status: incoming.status,
+            isFlagged: incoming.isFlagged ?? false,
+            flagReason: incoming.flagReason ?? null,
+          });
+          indexById.set(incoming.id, next.length - 1);
+          addedNew = true;
+        }
+      }
+
+      if (addedNew) {
+        next.sort((a, b) => a.name.localeCompare(b.name));
+      }
+
+      return next;
+    });
+  }, []);
+
+  const fetchStudents = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/faculty/sessions/${sessionId}/students`);
+      if (res.ok) {
+        const data = (await res.json()) as StudentsApiResponse;
+        if (mountedRef.current) {
+          setStudents((prev) => {
+            if (!prev || prev.length === 0) return data.students;
+            // Preserve any real-time SSE deltas that arrived while initial fetch was in flight
+            const prevMap = new Map(prev.map((s) => [s.id, s]));
+            const mergedMap = new Map<string, StudentStatus>();
+
+            for (const fetchedStudent of data.students) {
+              const existing = prevMap.get(fetchedStudent.id);
+              mergedMap.set(fetchedStudent.id, {
+                ...fetchedStudent,
+                status: fetchedStudent.status ?? existing?.status ?? null,
+                isFlagged: Boolean(fetchedStudent.isFlagged || existing?.isFlagged),
+                flagReason: fetchedStudent.flagReason ?? existing?.flagReason ?? null,
+              });
+            }
+
+            for (const existing of prev) {
+              if (!mergedMap.has(existing.id)) {
+                mergedMap.set(existing.id, existing);
+              }
+            }
+
+            return Array.from(mergedMap.values()).sort((a, b) =>
+              a.name.localeCompare(b.name)
+            );
+          });
+        }
+      }
+    } catch {
+      // Silently ignore transient fetch errors
+    }
+  }, [sessionId]);
 
   const connect = useCallback(() => {
     if (!mountedRef.current) return;
@@ -98,32 +188,12 @@ export default function LiveSessionClient({
     es.onopen = () => {
       reconnectAttemptRef.current = 0;
       setConnected(true);
+      void fetchStudents();
     };
 
-    // Full roster arrives inside the stream on every (re)connect.
-    es.addEventListener("roster", (e: MessageEvent<string>) => {
+    es.addEventListener("token", (e: MessageEvent<string>) => {
       try {
-        const data = JSON.parse(e.data) as RosterEvent;
-        if (mountedRef.current) setStudents(data.students);
-      } catch {
-        // ignore parse errors
-      }
-    });
-
-    // Per-student delta pushed directly – no extra HTTP request.
-    es.addEventListener("student_marked", (e: MessageEvent<string>) => {
-      try {
-        const data = JSON.parse(e.data) as StudentMarkedEvent;
-        if (!mountedRef.current) return;
-        setStudents((prev) => upsertStudent(prev, data.student));
-      } catch {
-        // ignore parse errors
-      }
-    });
-
-    es.addEventListener("token", (e) => {
-      try {
-        const data: TokenData = JSON.parse(e.data);
+        const data = JSON.parse(e.data) as TokenData;
         const received = Date.now();
         const interval = data.expiresAt - received;
         if (interval > 500) setTokenInterval(interval);
@@ -132,9 +202,39 @@ export default function LiveSessionClient({
           width: 512,
           margin: 1,
           color: { dark: "#1e293b", light: "#ffffff" },
-        }).then(setQrDataUrl);
+        }).then((url) => {
+          if (mountedRef.current) setQrDataUrl(url);
+        });
       } catch {
-        // ignore parse errors
+        // Ignore malformed token event
+      }
+    });
+
+    // Direct push of single student delta via SSE (zero extra HTTP roundtrip)
+    es.addEventListener("student_marked", (e: MessageEvent<string>) => {
+      try {
+        const payload = JSON.parse(e.data) as StudentMarkedEventPayload;
+        if (payload.student) {
+          applyStudentDeltas([payload.student]);
+        } else if (Array.isArray(payload.students) && payload.students.length > 0) {
+          applyStudentDeltas(payload.students);
+        }
+      } catch {
+        // Ignore malformed student_marked event
+      }
+    });
+
+    // Backward-compatible attendance event listener that applies embedded student deltas directly
+    es.addEventListener("attendance", (e: MessageEvent<string>) => {
+      try {
+        const payload = JSON.parse(e.data) as StudentMarkedEventPayload;
+        if (Array.isArray(payload.students) && payload.students.length > 0) {
+          applyStudentDeltas(payload.students);
+        } else if (payload.student) {
+          applyStudentDeltas([payload.student]);
+        }
+      } catch {
+        // Ignore malformed attendance event
       }
     });
 
@@ -158,7 +258,7 @@ export default function LiveSessionClient({
         connect();
       }, delay);
     };
-  }, [sessionId, router]);
+  }, [sessionId, router, fetchStudents, applyStudentDeltas]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -201,14 +301,14 @@ export default function LiveSessionClient({
     setLoadingModalData(true);
     try {
       const res = await fetch(`/api/faculty/sessions/${sessionId}/unmarked-count`);
-      const data = await res.json();
       if (res.ok) {
+        const data = (await res.json()) as UnmarkedCountResponse;
         setUnmarkedCount(data.count);
         setIsAdHoc(data.isAdHoc);
-        setAutoMarkAbsent(!data.isAdHoc); // default true for scheduled, false for ad-hoc
+        setAutoMarkAbsent(!data.isAdHoc);
       }
     } catch {
-      // ignore
+      // Ignore modal pre-check error
     } finally {
       setLoadingModalData(false);
     }
@@ -223,7 +323,7 @@ export default function LiveSessionClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ autoMarkAbsent }),
       });
-      const data = await res.json();
+      const data = (await res.json()) as EndSessionResponse;
       if (!res.ok) throw new Error(data.error ?? "Failed to end session");
       router.push(data.redirect);
     } catch (err: unknown) {
@@ -238,11 +338,17 @@ export default function LiveSessionClient({
       setMarkingId(studentId);
       setError(null);
 
-      const previousStatus: MarkStatus | null =
-        studentsRef.current?.find((s) => s.id === studentId)?.status ?? null;
-      setStudents((prev) =>
-        prev ? prev.map((s) => (s.id === studentId ? { ...s, status } : s)) : prev
-      );
+      let previousStatus: string | null | undefined = undefined;
+      setStudents((prev) => {
+        if (!prev) return prev;
+        return prev.map((s) => {
+          if (s.id === studentId) {
+            previousStatus = s.status;
+            return { ...s, status };
+          }
+          return s;
+        });
+      });
 
       try {
         const res = await fetch(
@@ -255,17 +361,18 @@ export default function LiveSessionClient({
         );
         if (!res.ok) {
           const data = (await res.json().catch(() => ({}))) as { error?: string };
-          throw new Error(data.error || "Failed to mark student");
+          throw new Error(data.error ?? "Failed to mark student");
         }
-        // Authoritative state is pushed back through the SSE stream.
       } catch (err: unknown) {
-        setStudents((prev) =>
-          prev
-            ? prev.map((s) =>
-                s.id === studentId ? { ...s, status: previousStatus } : s
-              )
-            : prev
-        );
+        // Roll back optimistic state on error
+        if (previousStatus !== undefined) {
+          const rollbackStatus = previousStatus;
+          setStudents((prev) =>
+            prev
+              ? prev.map((s) => (s.id === studentId ? { ...s, status: rollbackStatus } : s))
+              : prev
+          );
+        }
         setError(err instanceof Error ? err.message : "An error occurred");
       } finally {
         setMarkingId(null);
@@ -296,21 +403,25 @@ export default function LiveSessionClient({
   const refreshSecs = Math.ceil(refreshMsLeft / 1000);
   const timerPercent = tokenInterval > 0 ? (refreshMsLeft / tokenInterval) * 100 : 0;
 
-  const isAttended = (s: StudentStatus) => s.status === "PRESENT" || s.status === "LATE";
-  const presentCount = students?.filter(isAttended).length ?? 0;
+  const presentCount = students?.filter((s) => s.status === "PRESENT").length ?? 0;
   const absentCount = students?.filter((s) => s.status === "ABSENT").length ?? 0;
   const unmarkedRosterCount = students?.filter((s) => s.status === null).length ?? 0;
   const totalCount = students?.length ?? 0;
 
-  const filteredStudents = students?.filter((s) => {
-    if (rosterFilter === "ALL") return true;
-    if (rosterFilter === "PRESENT") return isAttended(s);
-    if (rosterFilter === "ABSENT") return s.status === "ABSENT";
-    if (rosterFilter === "UNMARKED") return s.status === null;
-    return true;
-  }) ?? null;
+  const filteredStudents =
+    students?.filter((s) => {
+      if (rosterFilter === "ALL") return true;
+      if (rosterFilter === "PRESENT") return s.status === "PRESENT";
+      if (rosterFilter === "ABSENT") return s.status === "ABSENT";
+      if (rosterFilter === "UNMARKED") return s.status === null;
+      return true;
+    }) ?? null;
 
-  const FILTER_TABS: { label: string; value: "ALL" | "PRESENT" | "ABSENT" | "UNMARKED"; count: number | null }[] = [
+  const FILTER_TABS: {
+    label: string;
+    value: "ALL" | "PRESENT" | "ABSENT" | "UNMARKED";
+    count: number | null;
+  }[] = [
     { label: "All", value: "ALL", count: totalCount },
     { label: "Present", value: "PRESENT", count: presentCount },
     { label: "Absent", value: "ABSENT", count: students ? absentCount : null },
@@ -322,9 +433,7 @@ export default function LiveSessionClient({
       {/* Header */}
       <div className="text-center mb-6">
         <h1 className="text-lg font-semibold text-ink">{courseName}</h1>
-        <p className="text-sm text-muted mt-0.5">
-          {courseCode} — Live Session
-        </p>
+        <p className="text-sm text-muted mt-0.5">{courseCode} — Live Session</p>
       </div>
 
       {!connected && (
@@ -373,9 +482,7 @@ export default function LiveSessionClient({
                   style={{ width: `${timerPercent}%` }}
                 />
               </div>
-              <span className="text-xs text-muted w-8 text-right">
-                {refreshSecs}s
-              </span>
+              <span className="text-xs text-muted w-8 text-right">{refreshSecs}s</span>
             </div>
           </div>
 
@@ -427,7 +534,9 @@ export default function LiveSessionClient({
             <div className="border-b border-slate-200 bg-slate-50">
               <div className="flex items-center justify-between px-4 py-2">
                 <span className="text-sm font-semibold text-slate-800">Student Roster</span>
-                <span className="text-xs text-slate-500 font-medium">{presentCount}/{totalCount} Present</span>
+                <span className="text-xs text-slate-500 font-medium">
+                  {presentCount}/{totalCount} Present
+                </span>
               </div>
               {/* Filter tabs */}
               <div className="flex border-t border-slate-100">
@@ -459,7 +568,9 @@ export default function LiveSessionClient({
                 </div>
               ) : filteredStudents.length === 0 ? (
                 <div className="px-4 py-8 text-center text-sm text-slate-400">
-                  {rosterFilter === "ALL" ? "No students found." : `No ${rosterFilter.toLowerCase()} students.`}
+                  {rosterFilter === "ALL"
+                    ? "No students found."
+                    : `No ${rosterFilter.toLowerCase()} students.`}
                 </div>
               ) : (
                 filteredStudents.map((student) => {
@@ -476,21 +587,23 @@ export default function LiveSessionClient({
                           {student.isFlagged && (
                             <span
                               className="inline-flex items-center gap-1 text-[10px] font-bold text-red-700 bg-red-100 border border-red-300 px-1.5 py-0.5 rounded cursor-help"
-                              title={student.flagReason || "Proxy scan detected"}
+                              title={student.flagReason ?? "Proxy scan detected"}
                             >
                               ⚠️ Proxy Alert
                             </span>
                           )}
                         </div>
                         <p className="text-xs text-slate-400 truncate">
-                          {student.rollNo} {student.isFlagged && student.flagReason ? `• ${student.flagReason}` : ""}
+                          {student.rollNo}{" "}
+                          {student.isFlagged && student.flagReason
+                            ? `• ${student.flagReason}`
+                            : ""}
                         </p>
                       </div>
 
                       <div className="flex items-center gap-1.5 shrink-0">
-                        {/* Present button — highlight if already present */}
                         <button
-                          onClick={() => handleMarkStudent(student.id, "PRESENT")}
+                          onClick={() => void handleMarkStudent(student.id, "PRESENT")}
                           disabled={isMarking}
                           className={`rounded px-2 py-1 text-xs font-medium transition-colors disabled:opacity-50 ${
                             status === "PRESENT"
@@ -502,9 +615,8 @@ export default function LiveSessionClient({
                           {isMarking ? "..." : "Present"}
                         </button>
 
-                        {/* Absent button — highlight if already absent */}
                         <button
-                          onClick={() => handleMarkStudent(student.id, "ABSENT")}
+                          onClick={() => void handleMarkStudent(student.id, "ABSENT")}
                           disabled={isMarking}
                           className={`rounded px-2 py-1 text-xs font-medium transition-colors disabled:opacity-50 ${
                             status === "ABSENT"
@@ -526,13 +638,11 @@ export default function LiveSessionClient({
       </div>
 
       {/* Error */}
-      {error && (
-        <p className="text-xs text-red-600 mb-4">{error}</p>
-      )}
+      {error && <p className="text-xs text-red-600 mb-4">{error}</p>}
 
       {/* End Session Button */}
       <button
-        onClick={handleOpenEndModal}
+        onClick={() => void handleOpenEndModal()}
         className="rounded border border-red-300 px-4 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 transition-colors"
       >
         End Session
@@ -554,7 +664,11 @@ export default function LiveSessionClient({
               </div>
             ) : (
               <div className="mb-5 rounded border border-slate-200 bg-slate-50 p-3">
-                <label className={`flex items-start gap-3 ${isAdHoc ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
+                <label
+                  className={`flex items-start gap-3 ${
+                    isAdHoc ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+                  }`}
+                >
                   <input
                     type="checkbox"
                     className="mt-0.5 rounded border-slate-300 text-primary focus:ring-primary"
@@ -567,8 +681,8 @@ export default function LiveSessionClient({
                       Auto-mark unmarked as ABSENT
                     </p>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      {isAdHoc 
-                        ? "Not available for ad-hoc sessions" 
+                      {isAdHoc
+                        ? "Not available for ad-hoc sessions"
                         : `Will mark ${unmarkedCount ?? 0} unmarked students as ABSENT.`}
                     </p>
                   </div>
@@ -585,7 +699,7 @@ export default function LiveSessionClient({
                 Cancel
               </button>
               <button
-                onClick={handleEndSession}
+                onClick={() => void handleEndSession()}
                 disabled={ending || loadingModalData}
                 className="rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
               >
@@ -596,13 +710,12 @@ export default function LiveSessionClient({
         </div>
       )}
 
-      {/* Full Screen QR Modal Overlay - ONLY QR CODE */}
+      {/* Full Screen QR Modal Overlay */}
       {isFullScreen && qrDataUrl && (
         <div
           className="fixed inset-0 z-50 bg-black flex items-center justify-center p-4 sm:p-8 animate-in fade-in duration-150 cursor-pointer"
           onClick={() => setIsFullScreen(false)}
         >
-          {/* Subtle floating close button in top right */}
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -614,7 +727,6 @@ export default function LiveSessionClient({
             <X className="w-6 h-6" />
           </button>
 
-          {/* Clean Big QR Code */}
           <div className="bg-white p-4 sm:p-6 rounded-3xl shadow-2xl flex items-center justify-center max-w-[92vw] max-h-[92vh] aspect-square">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img

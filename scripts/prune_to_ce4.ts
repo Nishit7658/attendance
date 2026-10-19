@@ -1,144 +1,158 @@
-/**
- * Prune the database down to Division CE 4 students only.
- *
- * Removes: student accounts in CE 1, CE 2, CE 3 and their attendance records
- *          (EditLogs cascade from AttendanceRecord; SavedGroupMember and
- *          EventScopeItem cascade from User).
- * Keeps:   faculty, HOD, admin, courses, branches, semesters, divisions,
- *          batches, timetable entries and sessions.
- *
- * Usage (dry run is the default – nothing is written):
- *   npx tsx scripts/prune_to_ce4.ts
- *   npx tsx scripts/prune_to_ce4.ts --apply
- *
- * BACK UP THE DATABASE BEFORE USING --apply.
- */
 import "dotenv/config";
 import { PrismaClient, Role } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-const KEEP_DIVISION = "CE 4";
-const REMOVE_DIVISIONS = ["CE 1", "CE 2", "CE 3"];
-const APPLY = process.argv.includes("--apply");
+async function pruneToCe4() {
+  console.log(
+    "Starting database cleanup: Pruning student accounts & attendance records to Division CE 4 only..."
+  );
 
-async function countByRole(): Promise<Record<Role, number>> {
-  const grouped = await prisma.user.groupBy({ by: ["role"], _count: { _all: true } });
-  const result: Record<Role, number> = { STUDENT: 0, FACULTY: 0, HOD: 0, ADMIN: 0 };
-  for (const g of grouped) result[g.role] = g._count._all;
-  return result;
-}
+  const ce4Division = await prisma.division.findFirst({
+    where: { name: "CE 4" },
+    select: { id: true, name: true, semesterId: true },
+  });
 
-async function main(): Promise<void> {
-  console.log(APPLY ? "MODE: APPLY (writes enabled)" : "MODE: DRY RUN (use --apply to delete)");
-
-  const keepDivisions = await prisma.division.findMany({ where: { name: KEEP_DIVISION } });
-  if (keepDivisions.length === 0) {
-    throw new Error(`Division "${KEEP_DIVISION}" not found – refusing to continue.`);
+  if (!ce4Division) {
+    throw new Error(
+      'Division "CE 4" was not found in the database. Aborting cleanup to prevent accidental data loss.'
+    );
   }
-  const keepDivisionIds = keepDivisions.map((d) => d.id);
 
-  const targets = await prisma.user.findMany({
+  // Locate all student users NOT assigned to Division CE 4 (i.e., CE 1, CE 2, CE 3, or unassigned)
+  const nonCe4Students = await prisma.user.findMany({
     where: {
       role: Role.STUDENT,
-      division: { name: { in: REMOVE_DIVISIONS } },
-      NOT: { divisionId: { in: keepDivisionIds } },
+      OR: [
+        { divisionId: { not: ce4Division.id } },
+        { divisionId: null },
+      ],
     },
-    select: { id: true, name: true, enrollmentNo: true, division: { select: { name: true } } },
-  });
-  const targetIds = targets.map((t) => t.id);
-
-  const rolesBefore = await countByRole();
-  const ce4Students = await prisma.user.count({
-    where: { role: Role.STUDENT, divisionId: { in: keepDivisionIds } },
-  });
-  const unassigned = await prisma.user.count({
-    where: { role: Role.STUDENT, divisionId: null },
+    select: {
+      id: true,
+      name: true,
+      enrollmentNo: true,
+      email: true,
+      division: { select: { name: true } },
+    },
   });
 
-  console.log("\nBefore:", rolesBefore, `| CE 4 students: ${ce4Students}`);
-  if (unassigned > 0) {
-    console.log(`Note: ${unassigned} student(s) have no division; they are left untouched.`);
-  }
-  console.log(`Students to delete: ${targets.length}`);
-  for (const d of REMOVE_DIVISIONS) {
-    console.log(`  ${d}: ${targets.filter((t) => t.division?.name === d).length}`);
+  const nonCe4StudentIds = nonCe4Students.map((s) => s.id);
+
+  if (nonCe4StudentIds.length === 0) {
+    console.log("No non-CE 4 students found. Database is already clean.");
+  } else {
+    console.log(`Found ${nonCe4StudentIds.length} non-CE 4 student accounts to remove.`);
+
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Delete EditLogs associated with attendance records of non-CE 4 students (or edited by them)
+      const deletedEditLogs = await tx.editLog.deleteMany({
+        where: {
+          OR: [
+            {
+              attendanceRecord: {
+                OR: [
+                  { studentId: { in: nonCe4StudentIds } },
+                  { markedById: { in: nonCe4StudentIds } },
+                ],
+              },
+            },
+            { editedById: { in: nonCe4StudentIds } },
+          ],
+        },
+      });
+
+      // 2. Delete AttendanceRecords where studentId or markedById belongs to non-CE 4 students
+      //    (Note: student QR scans set markedById = student.id, which has no Cascade delete)
+      const deletedAttendance = await tx.attendanceRecord.deleteMany({
+        where: {
+          OR: [
+            { studentId: { in: nonCe4StudentIds } },
+            { markedById: { in: nonCe4StudentIds } },
+          ],
+        },
+      });
+
+      // 3. Delete EventScopeItems referencing non-CE 4 students
+      const deletedEventScopes = await tx.eventScopeItem.deleteMany({
+        where: { studentId: { in: nonCe4StudentIds } },
+      });
+
+      // 4. Delete SavedGroupMembers referencing non-CE 4 students
+      const deletedGroupMembers = await tx.savedGroupMember.deleteMany({
+        where: { studentId: { in: nonCe4StudentIds } },
+      });
+
+      // 5. Safely delete non-CE 4 Student User records (strictly scoped to Role.STUDENT)
+      const deletedUsers = await tx.user.deleteMany({
+        where: {
+          id: { in: nonCe4StudentIds },
+          role: Role.STUDENT,
+        },
+      });
+
+      return {
+        deletedEditLogs: deletedEditLogs.count,
+        deletedAttendance: deletedAttendance.count,
+        deletedEventScopes: deletedEventScopes.count,
+        deletedGroupMembers: deletedGroupMembers.count,
+        deletedUsers: deletedUsers.count,
+      };
+    });
+
+    console.log("Cleanup transaction completed:");
+    console.log(`  - Removed EditLogs:          ${result.deletedEditLogs}`);
+    console.log(`  - Removed AttendanceRecords: ${result.deletedAttendance}`);
+    console.log(`  - Removed EventScopeItems:   ${result.deletedEventScopes}`);
+    console.log(`  - Removed SavedGroupMembers: ${result.deletedGroupMembers}`);
+    console.log(`  - Removed Non-CE4 Students:  ${result.deletedUsers}`);
   }
 
-  if (targetIds.length === 0) {
-    console.log("\nNothing to delete.");
-    return;
-  }
-
-  // Safety checks: never destroy data that belongs to retained users.
-  const [crossMarked, crossEdited, ownsEvents, ownsGroups] = await Promise.all([
-    prisma.attendanceRecord.count({
-      where: { markedById: { in: targetIds }, studentId: { notIn: targetIds } },
-    }),
-    prisma.editLog.count({
+  // Verification audit of retained entities
+  const [
+    remainingCe4Students,
+    remainingNonCe4Students,
+    facultyCount,
+    adminCount,
+    hodCount,
+    divisionCount,
+    courseCount,
+    timetableCount,
+    sessionCount,
+  ] = await Promise.all([
+    prisma.user.count({ where: { role: Role.STUDENT, divisionId: ce4Division.id } }),
+    prisma.user.count({
       where: {
-        editedById: { in: targetIds },
-        attendanceRecord: { studentId: { notIn: targetIds } },
+        role: Role.STUDENT,
+        OR: [{ divisionId: { not: ce4Division.id } }, { divisionId: null }],
       },
     }),
-    prisma.event.count({ where: { createdById: { in: targetIds } } }),
-    prisma.savedGroup.count({ where: { createdById: { in: targetIds } } }),
+    prisma.user.count({ where: { role: Role.FACULTY } }),
+    prisma.user.count({ where: { role: Role.ADMIN } }),
+    prisma.user.count({ where: { role: Role.HOD } }),
+    prisma.division.count(),
+    prisma.course.count(),
+    prisma.timetableEntry.count(),
+    prisma.session.count(),
   ]);
 
-  const blockers: string[] = [];
-  if (crossMarked > 0) blockers.push(`${crossMarked} retained attendance record(s) were marked by a student being removed`);
-  if (crossEdited > 0) blockers.push(`${crossEdited} retained edit log(s) were authored by a student being removed`);
-  if (ownsEvents > 0) blockers.push(`${ownsEvents} event(s) were created by a student being removed`);
-  if (ownsGroups > 0) blockers.push(`${ownsGroups} saved group(s) were created by a student being removed`);
-  if (blockers.length > 0) {
-    throw new Error(`Aborting – foreign keys would break:\n - ${blockers.join("\n - ")}`);
-  }
-
-  const recordCount = await prisma.attendanceRecord.count({
-    where: { studentId: { in: targetIds } },
-  });
-  console.log(`Attendance records to delete: ${recordCount}`);
-
-  if (!APPLY) {
-    console.log("\nDry run complete. Re-run with --apply to perform the deletion.");
-    return;
-  }
-
-  // One atomic batch, children first. Chunked to keep IN lists small.
-  const CHUNK = 500;
-  const ops = [];
-  for (let i = 0; i < targetIds.length; i += CHUNK) {
-    const ids = targetIds.slice(i, i + CHUNK);
-    ops.push(prisma.attendanceRecord.deleteMany({ where: { studentId: { in: ids } } }));
-  }
-  for (let i = 0; i < targetIds.length; i += CHUNK) {
-    const ids = targetIds.slice(i, i + CHUNK);
-    ops.push(prisma.user.deleteMany({ where: { id: { in: ids }, role: Role.STUDENT } }));
-  }
-  await prisma.$transaction(ops);
-
-  const rolesAfter = await countByRole();
-  const ce4After = await prisma.user.count({
-    where: { role: Role.STUDENT, divisionId: { in: keepDivisionIds } },
-  });
-  console.log("\nAfter:", rolesAfter, `| CE 4 students: ${ce4After}`);
-
-  if (
-    rolesAfter.FACULTY !== rolesBefore.FACULTY ||
-    rolesAfter.HOD !== rolesBefore.HOD ||
-    rolesAfter.ADMIN !== rolesBefore.ADMIN ||
-    ce4After !== ce4Students
-  ) {
-    throw new Error("Post-check failed: a retained account count changed. Restore from backup.");
-  }
-  console.log("Done. Faculty, HOD, admin and CE 4 students are unchanged.");
+  console.log("\n=== Post-Cleanup Database Audit ===");
+  console.log(`  - Retained CE 4 Students:    ${remainingCe4Students}`);
+  console.log(`  - Remaining Non-CE4 Students:${remainingNonCe4Students}`);
+  console.log(`  - Retained Faculty Members:  ${facultyCount}`);
+  console.log(`  - Retained Admins / HODs:    ${adminCount} Admin, ${hodCount} HOD`);
+  console.log(`  - Retained Divisions:        ${divisionCount}`);
+  console.log(`  - Retained Courses:          ${courseCount}`);
+  console.log(`  - Retained Timetable Entries:${timetableCount}`);
+  console.log(`  - Retained Sessions:         ${sessionCount}`);
 }
 
-main()
-  .catch((e: unknown) => {
-    console.error(e);
-    process.exitCode = 1;
-  })
-  .finally(async () => {
+pruneToCe4()
+  .then(async () => {
     await prisma.$disconnect();
+  })
+  .catch(async (err: unknown) => {
+    console.error("Failed to prune database to CE 4:", err);
+    await prisma.$disconnect();
+    process.exit(1);
   });

@@ -38,16 +38,12 @@ interface StudentSeed {
   enrollmentNo: string;
 }
 
-// students.json is dealt round-robin across CE 1..CE 4; CE 4 is the 4th slot.
-const DIVISION_COUNT = 4;
-const CE4_INDEX = 3;
-
 function timeToDate(time: string): Date {
   return new Date(`1970-01-01T${time}:00.000Z`);
 }
 
 async function main() {
-  console.log("Seeding database...");
+  console.log("Seeding database (Retaining CE 4 students only)...");
 
   const dbPath = path.join(__dirname, "real_data.json");
   const dbData = JSON.parse(fs.readFileSync(dbPath, "utf-8")) as {
@@ -59,7 +55,7 @@ async function main() {
   // Admin & HOD use standard secure password
   const adminPasswordHash = await bcrypt.hash("Admin@College2024!", 12);
 
-  // 1. Create Organizational Hierarchy
+  // 1. Create Organizational Hierarchy (Retain all Branches, Semesters, Divisions CE 1..CE 4, and Batches A/B/C)
   const branch = await prisma.branch.upsert({
     where: { code: "CSE" },
     update: {},
@@ -78,7 +74,7 @@ async function main() {
     },
   });
 
-  const division = await prisma.division.upsert({
+  const div1 = await prisma.division.upsert({
     where: { name_semesterId: { name: "CE 1", semesterId: semester.id } },
     update: { name: "CE 1" },
     create: { name: "CE 1", semesterId: semester.id },
@@ -102,7 +98,7 @@ async function main() {
     create: { name: "CE 4", semesterId: semester.id },
   });
 
-  const allDivisions = [division, div2, div3, div4];
+  const allDivisions = [div1, div2, div3, div4];
 
   for (const div of allDivisions) {
     await prisma.batch.upsert({
@@ -122,7 +118,7 @@ async function main() {
     });
   }
 
-  // 2. Create Admin & HOD
+  // 2. Create Admin & HOD (100% Intact)
   await prisma.user.upsert({
     where: { email: "admin@college.edu" },
     update: {},
@@ -147,7 +143,7 @@ async function main() {
     },
   });
 
-  // 3. Create Faculty — password = Capitalized(code) + "@Faculty2024!"
+  // 3. Create ALL Faculty — password = Capitalized(code) + "@Faculty2024!" (100% Intact)
   const facultyMap = new Map<string, string>();
   for (const f of dbData.faculties) {
     const shortEmail = `${f.code.toLowerCase()}@faculty.college.edu`;
@@ -167,7 +163,7 @@ async function main() {
     facultyMap.set(f.code, user.id);
   }
 
-  // 4. Create Courses
+  // 4. Create ALL Courses (100% Intact)
   const courseMap = new Map<string, string>();
   for (const c of dbData.courses) {
     const course = await prisma.course.upsert({
@@ -183,14 +179,27 @@ async function main() {
     courseMap.set(c.code, course.id);
   }
 
-  // 5. Create Timetable Entries
+  // 5. Create ALL Timetable Entries across all divisions (100% Intact)
+  await prisma.editLog.deleteMany();
+  await prisma.attendanceRecord.deleteMany();
+  await prisma.session.deleteMany();
   await prisma.timetableEntry.deleteMany();
 
   for (const div of allDivisions) {
-    const divBatchA = await prisma.batch.findUnique({ where: { name_divisionId: { name: "A", divisionId: div.id } } });
-    const divBatchB = await prisma.batch.findUnique({ where: { name_divisionId: { name: "B", divisionId: div.id } } });
-    const divBatchC = await prisma.batch.findUnique({ where: { name_divisionId: { name: "C", divisionId: div.id } } });
-    const localBatchMap = { A: divBatchA?.id, B: divBatchB?.id, C: divBatchC?.id } as Record<string, string>;
+    const divBatchA = await prisma.batch.findUnique({
+      where: { name_divisionId: { name: "A", divisionId: div.id } },
+    });
+    const divBatchB = await prisma.batch.findUnique({
+      where: { name_divisionId: { name: "B", divisionId: div.id } },
+    });
+    const divBatchC = await prisma.batch.findUnique({
+      where: { name_divisionId: { name: "C", divisionId: div.id } },
+    });
+    const localBatchMap: Record<string, string | undefined> = {
+      A: divBatchA?.id,
+      B: divBatchB?.id,
+      C: divBatchC?.id,
+    };
 
     const divEntries = dbData.entries.filter((e) => e.division === div.name);
 
@@ -201,7 +210,7 @@ async function main() {
       if (!facultyId || !courseId) continue;
 
       const isAll = entry.section === "ALL";
-      const batchId = isAll ? null : localBatchMap[entry.section];
+      const batchId = isAll ? null : (localBatchMap[entry.section] ?? null);
 
       await prisma.timetableEntry.create({
         data: {
@@ -211,6 +220,7 @@ async function main() {
           courseId,
           facultyId,
           room: entry.room,
+          section: entry.section,
           divisionId: div.id,
           batchId,
         },
@@ -218,39 +228,67 @@ async function main() {
     }
   }
 
-  // 6. Create Students — CE 4 ONLY
-  //    password = "Student@" + last 4 digits + "!"
-  //
-  //    students.json is one flat list. Historically it was dealt out round-robin
-  //    across CE 1..CE 4 (index % 4), so CE 4 is index % 4 === 3. That exact mapping
-  //    (and the batch formula) is preserved here so existing CE 4 accounts keep the
-  //    same division/batch and the prune script and seed always agree.
-  //    CE 1-3 divisions, batches and timetables above are still created.
-  await prisma.attendanceRecord.deleteMany();
-  await prisma.session.deleteMany();
+  // 6. Prune any existing non-CE 4 students and seed ONLY Division CE 4 students
+  const nonCe4DivisionIds = [div1.id, div2.id, div3.id];
+  const nonCe4Students = await prisma.user.findMany({
+    where: {
+      role: Role.STUDENT,
+      OR: [
+        { divisionId: { in: nonCe4DivisionIds } },
+        { divisionId: null },
+        { email: "student@college.edu" },
+      ],
+    },
+    select: { id: true },
+  });
+
+  if (nonCe4Students.length > 0) {
+    const nonCe4StudentIds = nonCe4Students.map((s) => s.id);
+    await prisma.eventScopeItem.deleteMany({
+      where: { studentId: { in: nonCe4StudentIds } },
+    });
+    await prisma.savedGroupMember.deleteMany({
+      where: { studentId: { in: nonCe4StudentIds } },
+    });
+    await prisma.user.deleteMany({
+      where: { id: { in: nonCe4StudentIds }, role: Role.STUDENT },
+    });
+  }
 
   const studentsPath = path.join(__dirname, "students.json");
-  const studentsData = JSON.parse(fs.readFileSync(studentsPath, "utf-8")) as StudentSeed[];
+  const studentsData = JSON.parse(
+    fs.readFileSync(studentsPath, "utf-8")
+  ) as StudentSeed[];
 
-  const ce4Batches = await prisma.batch.findMany({
-    where: { divisionId: div4.id, name: { in: ["A", "B", "C"] } },
-    orderBy: { name: "asc" },
+  const ce4BatchA = await prisma.batch.findUnique({
+    where: { name_divisionId: { name: "A", divisionId: div4.id } },
   });
-  const ce4BatchIds: (string | undefined)[] = ["A", "B", "C"].map(
-    (n) => ce4Batches.find((b) => b.name === n)?.id
-  );
+  const ce4BatchB = await prisma.batch.findUnique({
+    where: { name_divisionId: { name: "B", divisionId: div4.id } },
+  });
+  const ce4BatchC = await prisma.batch.findUnique({
+    where: { name_divisionId: { name: "C", divisionId: div4.id } },
+  });
+  const ce4Batches = [
+    ce4BatchA?.id ?? null,
+    ce4BatchB?.id ?? null,
+    ce4BatchC?.id ?? null,
+  ];
 
-  let ce4Count = 0;
+  const validCe4Emails = new Set<string>();
+
   for (let i = 0; i < studentsData.length; i++) {
-    if (i % DIVISION_COUNT !== CE4_INDEX) continue; // not a CE 4 student
-
     const s = studentsData[i];
     const email = `${s.enrollmentNo}@student.college.edu`;
+    validCe4Emails.add(email);
 
     // Password: Student@ + last 4 digits + !
     const last4 = s.enrollmentNo.slice(-4);
-    const studentPasswordHash = await bcrypt.hash(`Student@${last4}!`, 12);
-    const batchId = ce4BatchIds[Math.floor(i / DIVISION_COUNT) % 3] ?? null;
+    const studentPassword = `Student@${last4}!`;
+    const studentPasswordHash = await bcrypt.hash(studentPassword, 12);
+
+    // Assign all seeded students exclusively to Division CE 4 across its A, B, C batches
+    const batchId = ce4Batches[i % ce4Batches.length];
 
     await prisma.user.upsert({
       where: { email },
@@ -258,9 +296,10 @@ async function main() {
         name: s.name,
         enrollmentNo: s.enrollmentNo,
         passwordHash: studentPasswordHash,
+        branchId: branch.id,
+        semesterId: semester.id,
         divisionId: div4.id,
         batchId,
-        semesterId: semester.id,
       },
       create: {
         email,
@@ -274,14 +313,20 @@ async function main() {
         batchId,
       },
     });
-    ce4Count++;
   }
-  console.log(`Seeded ${ce4Count} CE 4 students.`);
 
-  // Remove old demo student@college.edu (all students now use enrollment emails)
-  await prisma.user.deleteMany({ where: { email: "student@college.edu" } });
+  // Ensure no leftover student accounts outside the CE 4 roster remain
+  await prisma.user.deleteMany({
+    where: {
+      role: Role.STUDENT,
+      OR: [
+        { divisionId: { not: div4.id } },
+        { email: { notIn: Array.from(validCe4Emails) } },
+      ],
+    },
+  });
 
-  // 7. Auto-generate Sessions for Today
+  // 7. Auto-generate Scheduled Sessions for Today (100% Intact)
   const today = new Date();
   const currentDayOfWeek = today.getDay() === 0 ? 1 : today.getDay();
 
@@ -290,7 +335,9 @@ async function main() {
     include: { course: true, faculty: true },
   });
 
-  console.log(`Creating ${todayEntries.length} sessions for today (Day ${currentDayOfWeek})...`);
+  console.log(
+    `Creating ${todayEntries.length} sessions for today (Day ${currentDayOfWeek})...`
+  );
 
   for (const entry of todayEntries) {
     const stHours = entry.startTime.getUTCHours();
@@ -298,8 +345,20 @@ async function main() {
     const etHours = entry.endTime.getUTCHours();
     const etMins = entry.endTime.getUTCMinutes();
 
-    const startTime = new Date(today.getFullYear(), today.getMonth(), today.getDate(), stHours, stMins);
-    const endTime = new Date(today.getFullYear(), today.getMonth(), today.getDate(), etHours, etMins);
+    const startTime = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate(),
+      stHours,
+      stMins
+    );
+    const endTime = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate(),
+      etHours,
+      etMins
+    );
 
     await prisma.session.create({
       data: {
@@ -334,22 +393,24 @@ async function main() {
     });
   }
 
-  console.log("Database seeded successfully!");
+  console.log(
+    `Database seeded successfully! (${studentsData.length} students in CE 4)`
+  );
   console.log("");
   console.log("=== Login Credentials ===");
   console.log("Admin:   admin@college.edu          / Admin@College2024!");
   console.log("HOD:     hod@college.edu            / Admin@College2024!");
   console.log("Faculty: byp@faculty.college.edu    / BYP@Faculty2024!");
   console.log("Faculty: nrs@faculty.college.edu    / NRS@Faculty2024!");
-  console.log("Student: 240410107071@student.college.edu / Student@7071!");
-  console.log("Student: 240410107093@student.college.edu / Student@7093!");
+  console.log("Student: 240410107071@student.college.edu / Student@7071! (CE 4)");
+  console.log("Student: 240410107093@student.college.edu / Student@7093! (CE 4)");
 }
 
 main()
   .then(async () => {
     await prisma.$disconnect();
   })
-  .catch(async (e) => {
+  .catch(async (e: unknown) => {
     console.error(e);
     await prisma.$disconnect();
     process.exit(1);
