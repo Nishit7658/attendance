@@ -111,75 +111,79 @@ export async function POST(request: NextRequest) {
       throw new AppError("Session is not active or not found", 400);
     }
 
-    const existing = await prisma.attendanceRecord.findFirst({
-      where: { sessionId: session.id, studentId: user.id },
-    });
+    // Using a rolling 24h window avoids timezone mismatches between the server clock and
+    // the college's local time (e.g. UTC server vs IST college).
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    // Run all independent lookups concurrently instead of one round trip at a time —
+    // this was the main source of scan latency on mobile.
+    const [existing, sameSessionDeviceRecord, sameDayOtherStudentRecord, studentObj] =
+      await Promise.all([
+        prisma.attendanceRecord.findFirst({
+          where: { sessionId: session.id, studentId: user.id },
+        }),
+        // Same device ALREADY used by a DIFFERENT student in this session
+        prisma.attendanceRecord.findFirst({
+          where: {
+            sessionId: session.id,
+            deviceId: deviceHash,
+            studentId: { not: user.id },
+          },
+          include: { student: { select: { name: true } } },
+        }),
+        // Same device used by a DIFFERENT student in the last 24 hours
+        prisma.attendanceRecord.findFirst({
+          where: {
+            markedAt: { gte: oneDayAgo },
+            deviceId: deviceHash,
+            studentId: { not: user.id },
+          },
+          include: { student: { select: { name: true } } },
+        }),
+        prisma.user.findUnique({
+          where: { id: user.id },
+          select: { deviceId: true },
+        }),
+      ]);
 
     if (existing) {
       throw new AppError("Already marked", 409);
     }
 
-    // Flagging & Proxy detection logic using server-side device hash
+    // Flagging & Proxy detection logic using server-side device hash.
+    // Same-session match takes priority over the 24h cross-session match.
     let isFlagged = false;
     let flagReason: string | undefined = undefined;
-
-    // 1. Check if this same device was ALREADY used by a DIFFERENT student in this session
-    const sameSessionDeviceRecord = await prisma.attendanceRecord.findFirst({
-      where: {
-        sessionId: session.id,
-        deviceId: deviceHash,
-        studentId: { not: user.id },
-      },
-      include: { student: { select: { name: true } } },
-    });
 
     if (sameSessionDeviceRecord) {
       isFlagged = true;
       flagReason = `Proxy Flag: Same phone used by multiple students in this session (${sameSessionDeviceRecord.student.name})`;
-    } else {
-      // 2. Check if this same device was used by a DIFFERENT student in the last 24 hours.
-      //    Using a rolling window avoids timezone mismatches between the server clock and
-      //    the college's local time (e.g. UTC server vs IST college).
-      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    } else if (sameDayOtherStudentRecord) {
+      isFlagged = true;
+      flagReason = `Proxy Flag: Same phone used by ${sameDayOtherStudentRecord.student.name} today`;
+    }
 
-      const sameDayOtherStudentRecord = await prisma.attendanceRecord.findFirst({
-        where: {
-          markedAt: { gte: oneDayAgo },
+    // Bind primary deviceId hash to student user profile on first scan if not set.
+    // Runs alongside the attendance record write since the two are independent.
+    const [, record] = await Promise.all([
+      !studentObj?.deviceId
+        ? prisma.user.update({
+            where: { id: user.id },
+            data: { deviceId: deviceHash },
+          })
+        : Promise.resolve(null),
+      prisma.attendanceRecord.create({
+        data: {
+          sessionId: session.id,
+          studentId: user.id,
+          status: "PRESENT",
+          markedById: user.id,
           deviceId: deviceHash,
-          studentId: { not: user.id },
+          isFlagged,
+          flagReason,
         },
-        include: { student: { select: { name: true } } },
-      });
-
-      if (sameDayOtherStudentRecord) {
-        isFlagged = true;
-        flagReason = `Proxy Flag: Same phone used by ${sameDayOtherStudentRecord.student.name} today`;
-      }
-    }
-
-    // Bind primary deviceId hash to student user profile on first scan if not set
-    const studentObj = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: { deviceId: true },
-    });
-    if (!studentObj?.deviceId) {
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { deviceId: deviceHash },
-      });
-    }
-
-    const record = await prisma.attendanceRecord.create({
-      data: {
-        sessionId: session.id,
-        studentId: user.id,
-        status: "PRESENT",
-        markedById: user.id,
-        deviceId: deviceHash,
-        isFlagged,
-        flagReason,
-      },
-    });
+      }),
+    ]);
 
     // Push to the faculty live screen immediately (same-instance fast path).
     publishAttendanceChange(session.id);

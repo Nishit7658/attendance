@@ -87,6 +87,19 @@ export async function POST(request: NextRequest) {
 
       const validRoles = ["STUDENT", "FACULTY", "HOD", "ADMIN"];
       const defaultPassword = await bcrypt.hash("password123", 12);
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+      type Candidate = {
+        rowNum: number;
+        name: string;
+        email: string;
+        role: "STUDENT" | "FACULTY" | "HOD" | "ADMIN";
+        department: string | null;
+        password: string;
+      };
+
+      const candidates: Candidate[] = [];
+      const seenEmails = new Set<string>();
 
       for (let i = 0; i < dataRows.length; i++) {
         const row = dataRows[i];
@@ -110,34 +123,70 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email)) {
           results.push({ row: rowNum, status: "error", message: `Invalid email format: ${email}` });
           continue;
         }
 
-        // Check for duplicate
-        const existing = await prisma.user.findUnique({ where: { email } });
-        if (existing) {
+        if (seenEmails.has(email)) {
           results.push({ row: rowNum, status: "skipped", message: `Duplicate email: ${email}` });
           continue;
         }
+        seenEmails.add(email);
 
-        const passwordHash = password === "password123"
-          ? defaultPassword
-          : await bcrypt.hash(password, 12);
-
-        await prisma.user.create({
-          data: {
-            name,
-            email,
-            role: role as "STUDENT" | "FACULTY" | "HOD" | "ADMIN",
-            passwordHash,
-            department: department || null,
-          },
+        candidates.push({
+          rowNum,
+          name,
+          email,
+          role: role as Candidate["role"],
+          department: department || null,
+          password,
         });
+      }
 
-        results.push({ row: rowNum, status: "ok", message: `Created ${role.toLowerCase()}: ${name}` });
+      // One batch lookup instead of a per-row round trip to find existing emails
+      const existingUsers = candidates.length
+        ? await prisma.user.findMany({
+            where: { email: { in: candidates.map((c) => c.email) } },
+            select: { email: true },
+          })
+        : [];
+      const existingEmails = new Set(existingUsers.map((u) => u.email));
+
+      const toCreate = candidates.filter((c) => {
+        if (existingEmails.has(c.email)) {
+          results.push({ row: c.rowNum, status: "skipped", message: `Duplicate email: ${c.email}` });
+          return false;
+        }
+        return true;
+      });
+
+      // Hash custom passwords concurrently (CPU-bound, not a DB round trip)
+      const createData = await Promise.all(
+        toCreate.map(async (c) => ({
+          rowNum: c.rowNum,
+          name: c.name,
+          email: c.email,
+          role: c.role,
+          department: c.department,
+          passwordHash: c.password === "password123" ? defaultPassword : await bcrypt.hash(c.password, 12),
+        }))
+      );
+
+      if (createData.length) {
+        await prisma.user.createMany({
+          data: createData.map((c) => ({
+            name: c.name,
+            email: c.email,
+            role: c.role,
+            passwordHash: c.passwordHash,
+            department: c.department,
+          })),
+        });
+      }
+
+      for (const c of createData) {
+        results.push({ row: c.rowNum, status: "ok", message: `Created ${c.role.toLowerCase()}: ${c.name}` });
       }
     } else if (entity === "courses") {
       // Expected headers: code, name, department (optional), credits (optional)
@@ -151,6 +200,17 @@ export async function POST(request: NextRequest) {
           error: "CSV for courses must have 'code' and 'name' columns.",
         }, { status: 400 });
       }
+
+      type CourseCandidate = {
+        rowNum: number;
+        code: string;
+        name: string;
+        department: string;
+        credits: number;
+      };
+
+      const candidates: CourseCandidate[] = [];
+      const seenCodes = new Set<string>();
 
       for (let i = 0; i < dataRows.length; i++) {
         const row = dataRows[i];
@@ -171,25 +231,50 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        const existing = await prisma.course.findUnique({ where: { code } });
-        if (existing) {
+        if (seenCodes.has(code)) {
           results.push({ row: rowNum, status: "skipped", message: `Duplicate code: ${code}` });
           continue;
         }
+        seenCodes.add(code);
 
-        await prisma.course.create({
-          data: {
-            code,
-            name,
-            department,
-            credits: isNaN(credits) ? 3 : credits,
-            branchId: fallbackBranchId,
-          },
+        candidates.push({ rowNum, code, name, department, credits: isNaN(credits) ? 3 : credits });
+      }
+
+      // One batch lookup instead of a per-row round trip to find existing codes
+      const existingCourses = candidates.length
+        ? await prisma.course.findMany({
+            where: { code: { in: candidates.map((c) => c.code) } },
+            select: { code: true },
+          })
+        : [];
+      const existingCodes = new Set(existingCourses.map((c) => c.code));
+
+      const toCreate = candidates.filter((c) => {
+        if (existingCodes.has(c.code)) {
+          results.push({ row: c.rowNum, status: "skipped", message: `Duplicate code: ${c.code}` });
+          return false;
+        }
+        return true;
+      });
+
+      if (toCreate.length) {
+        await prisma.course.createMany({
+          data: toCreate.map((c) => ({
+            code: c.code,
+            name: c.name,
+            department: c.department,
+            credits: c.credits,
+            branchId: fallbackBranchId!,
+          })),
         });
+      }
 
-        results.push({ row: rowNum, status: "ok", message: `Created course: ${code} - ${name}` });
+      for (const c of toCreate) {
+        results.push({ row: c.rowNum, status: "ok", message: `Created course: ${c.code} - ${c.name}` });
       }
     }
+
+    results.sort((a, b) => a.row - b.row);
 
     const ok = results.filter((r) => r.status === "ok").length;
     const skipped = results.filter((r) => r.status === "skipped").length;
